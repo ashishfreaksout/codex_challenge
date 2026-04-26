@@ -3,7 +3,7 @@ import { FlatList, Pressable } from "react-native";
 import { MapPin, Search, X } from "lucide-react-native";
 import styled from "styled-components/native";
 
-import { SAN_JOSE_NEIGHBORHOODS } from "../constants/neighborhoods";
+import { BAY_AREA_LOCATIONS } from "../constants/neighborhoods";
 import { colors, radii, shadows } from "../theme";
 
 export default function SearchBar({ onSelectNeighborhood }) {
@@ -14,11 +14,11 @@ export default function SearchBar({ onSelectNeighborhood }) {
     const normalized = query.trim().toLowerCase();
 
     if (!normalized) {
-      return SAN_JOSE_NEIGHBORHOODS.slice(0, 4);
+      return BAY_AREA_LOCATIONS.slice(0, 5);
     }
 
-    return SAN_JOSE_NEIGHBORHOODS.filter((neighborhood) =>
-      neighborhood.name.toLowerCase().includes(normalized)
+    return BAY_AREA_LOCATIONS.filter((location) =>
+      location.name.toLowerCase().includes(normalized)
     ).slice(0, 5);
   }, [query]);
 
@@ -38,7 +38,7 @@ export default function SearchBar({ onSelectNeighborhood }) {
           value={query}
           onChangeText={setQuery}
           onFocus={() => setIsFocused(true)}
-          placeholder="Search San Jose neighborhoods"
+          placeholder="Search Bay Area cities and neighborhoods"
           placeholderTextColor={colors.textMuted}
           returnKeyType="search"
         />

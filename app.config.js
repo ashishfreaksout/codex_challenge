@@ -2,8 +2,8 @@ const googleMapsApiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || "";
 
 module.exports = {
   expo: {
-    name: "San Jose Pothole Tracker",
-    slug: "san-jose-pothole-tracker",
+    name: "Bay Area Pothole Tracker",
+    slug: "bay-area-pothole-tracker",
     version: "1.0.0",
     orientation: "portrait",
     userInterfaceStyle: "light",
@@ -13,17 +13,17 @@ module.exports = {
     assetBundlePatterns: ["**/*"],
     ios: {
       supportsTablet: true,
-      bundleIdentifier: "com.example.sanjosepotholes",
+      bundleIdentifier: "com.example.bayareapotholes",
       config: {
         googleMapsApiKey
       },
       infoPlist: {
         NSLocationWhenInUseUsageDescription:
-          "San Jose Pothole Tracker uses your location to place a pothole report at your current GPS position."
+          "Bay Area Pothole Tracker uses your location to place a pothole report at your current GPS position."
       }
     },
     android: {
-      package: "com.example.sanjosepotholes",
+      package: "com.example.bayareapotholes",
       permissions: ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"],
       config: {
         googleMaps: {
@@ -39,7 +39,7 @@ module.exports = {
         "expo-location",
         {
           locationWhenInUsePermission:
-            "San Jose Pothole Tracker uses your location to place a pothole report at your current GPS position."
+            "Bay Area Pothole Tracker uses your location to place a pothole report at your current GPS position."
         }
       ]
     ]

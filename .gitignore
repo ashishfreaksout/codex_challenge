@@ -1,0 +1,5 @@
+node_modules
+.expo
+.venv
+dist
+predictive-service/data/risk_grid.geojson

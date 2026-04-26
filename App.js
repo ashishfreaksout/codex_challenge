@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -9,21 +9,28 @@ import {
 } from "react-native";
 import * as Location from "expo-location";
 import { StatusBar } from "expo-status-bar";
-import { Crosshair, MapPin, Plus, X } from "lucide-react-native";
+import { AlertTriangle, Crosshair, MapPin, Plus, X } from "lucide-react-native";
 import styled from "styled-components/native";
 
 import MapComponent from "./src/components/MapComponent";
 import ReportPotholeModal from "./src/components/ReportPotholeModal";
 import SearchBar from "./src/components/SearchBar";
 import StatusFilter from "./src/components/StatusFilter";
-import { SAN_JOSE_CENTER } from "./src/constants/neighborhoods";
+import ViewModeSwitch from "./src/components/ViewModeSwitch";
+import { BAY_AREA_CENTER } from "./src/constants/neighborhoods";
 import {
   createPotholeReport,
   subscribeToPotholes
 } from "./src/services/potholeRepository";
+import {
+  fetchHighRiskPredictionNearLocation,
+  notifyPredictionService
+} from "./src/services/predictiveMapApi";
 import { colors, radii, shadows } from "./src/theme";
 
 const statusBarOffset = Platform.OS === "android" ? RNStatusBar.currentHeight || 0 : 0;
+const RISK_ALERT_DURATION_MS = 7500;
+const RISK_ALERT_COOLDOWN_MS = 65000;
 
 export default function App() {
   const [potholes, setPotholes] = useState([]);
@@ -34,10 +41,95 @@ export default function App() {
   const [locationMessage, setLocationMessage] = useState("");
   const [isCapturingLocation, setIsCapturingLocation] = useState(false);
   const [mapFocus, setMapFocus] = useState(null);
+  const [viewMode, setViewMode] = useState("reported");
+  const [predictionRefreshToken, setPredictionRefreshToken] = useState(0);
+  const [driverRiskAlert, setDriverRiskAlert] = useState(null);
+  const lastRiskAlertAtRef = useRef(0);
+  const lastRiskCellRef = useRef(null);
+  const riskCheckInFlightRef = useRef(false);
 
   useEffect(() => {
     const unsubscribe = subscribeToPotholes(setPotholes);
     return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    let locationSubscription = null;
+    let alertTimer = null;
+    let mounted = true;
+
+    async function startDriverRiskAlerts() {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (!mounted || status !== "granted") {
+          return;
+        }
+
+        locationSubscription = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.Balanced,
+            distanceInterval: 120,
+            timeInterval: 15000
+          },
+          async ({ coords }) => {
+            if (riskCheckInFlightRef.current) {
+              return;
+            }
+
+            const now = Date.now();
+            if (now - lastRiskAlertAtRef.current < RISK_ALERT_COOLDOWN_MS) {
+              return;
+            }
+
+            riskCheckInFlightRef.current = true;
+            try {
+              const highRiskFeature = await fetchHighRiskPredictionNearLocation({
+                latitude: coords.latitude,
+                longitude: coords.longitude
+              });
+
+              const cellId = highRiskFeature?.properties?.cell_id;
+              if (!mounted || !highRiskFeature || cellId === lastRiskCellRef.current) {
+                return;
+              }
+
+              lastRiskAlertAtRef.current = now;
+              lastRiskCellRef.current = cellId;
+              setDriverRiskAlert({
+                id: cellId,
+                score: Number(highRiskFeature.properties?.probability_score || 0),
+                region: highRiskFeature.properties?.environment_source_region || "this area"
+              });
+
+              if (alertTimer) {
+                clearTimeout(alertTimer);
+              }
+              alertTimer = setTimeout(() => {
+                if (mounted) {
+                  setDriverRiskAlert(null);
+                }
+              }, RISK_ALERT_DURATION_MS);
+            } catch (error) {
+              console.warn("Driver pothole risk check skipped:", error.message);
+            } finally {
+              riskCheckInFlightRef.current = false;
+            }
+          }
+        );
+      } catch (error) {
+        console.warn("Driver location alerts unavailable:", error.message);
+      }
+    }
+
+    startDriverRiskAlerts();
+
+    return () => {
+      mounted = false;
+      if (alertTimer) {
+        clearTimeout(alertTimer);
+      }
+      locationSubscription?.remove();
+    };
   }, []);
 
   const filteredPotholes = useMemo(() => {
@@ -76,14 +168,14 @@ export default function App() {
 
       if (status !== "granted") {
         const fallback = {
-          ...SAN_JOSE_CENTER,
+          ...BAY_AREA_CENTER,
           latitudeDelta: 0.02,
           longitudeDelta: 0.02
         };
         setDraftLocation(fallback);
         setMapFocus(fallback);
         setLocationMessage(
-          "Location permission was not granted, so the draft report is pinned to central San Jose."
+          "Location permission was not granted, so the draft report is pinned to the Bay Area map center."
         );
         setReportVisible(true);
         return;
@@ -106,16 +198,16 @@ export default function App() {
     } catch (error) {
       Alert.alert(
         "Location unavailable",
-        "Your GPS location could not be captured. A draft report will be placed in central San Jose."
+        "Your GPS location could not be captured. A draft report will be placed at the Bay Area map center."
       );
       const fallback = {
-        ...SAN_JOSE_CENTER,
+        ...BAY_AREA_CENTER,
         latitudeDelta: 0.02,
         longitudeDelta: 0.02
       };
       setDraftLocation(fallback);
       setMapFocus(fallback);
-      setLocationMessage("GPS was unavailable, so the draft report is pinned to central San Jose.");
+      setLocationMessage("GPS was unavailable, so the draft report is pinned to the Bay Area map center.");
       setReportVisible(true);
     } finally {
       setIsCapturingLocation(false);
@@ -124,7 +216,7 @@ export default function App() {
 
   const handleSubmitReport = ({ severity, notes }) => {
     const report = createPotholeReport({
-      coordinate: draftLocation || SAN_JOSE_CENTER,
+      coordinate: draftLocation || BAY_AREA_CENTER,
       severity,
       notes
     });
@@ -138,6 +230,14 @@ export default function App() {
     setReportVisible(false);
     setDraftLocation(null);
     setLocationMessage("");
+
+    notifyPredictionService(report)
+      .then(() => {
+        setPredictionRefreshToken(Date.now());
+      })
+      .catch((error) => {
+        console.warn("Prediction service update skipped:", error.message);
+      });
   };
 
   const handleCloseReport = () => {
@@ -150,19 +250,30 @@ export default function App() {
     <Screen>
       <StatusBar style="light" translucent />
       <MapComponent
-        potholes={filteredPotholes}
+        potholes={viewMode === "reported" ? filteredPotholes : []}
         selectedPothole={selectedPothole}
         focusLocation={mapFocus}
         draftLocation={reportVisible ? draftLocation : null}
         onMarkerPress={setSelectedPothole}
+        viewMode={viewMode}
+        predictionRefreshToken={predictionRefreshToken}
       />
 
       <TopOverlay $top={statusBarOffset + 12}>
         <SearchBar onSelectNeighborhood={handleNeighborhoodSelect} />
-        <StatusFilter value={statusFilter} onChange={setStatusFilter} counts={counts} />
+        <ViewModeSwitch
+          value={viewMode}
+          onChange={(mode) => {
+            setViewMode(mode);
+            setSelectedPothole(null);
+          }}
+        />
+        {viewMode === "reported" ? (
+          <StatusFilter value={statusFilter} onChange={setStatusFilter} counts={counts} />
+        ) : null}
       </TopOverlay>
 
-      {selectedPothole ? (
+      {selectedPothole && viewMode === "reported" ? (
         <DetailsPanel>
           <DetailsHeader>
             <StatusPill $status={selectedPothole.status}>
@@ -190,6 +301,23 @@ export default function App() {
         </DetailsPanel>
       ) : null}
 
+      {driverRiskAlert ? (
+        <DriverAlertPanel $raised={selectedPothole && viewMode === "reported"}>
+          <DriverAlertIcon>
+            <AlertTriangle size={20} color={colors.white} />
+          </DriverAlertIcon>
+          <DriverAlertCopy>
+            <DriverAlertTitle>High pothole probability nearby</DriverAlertTitle>
+            <DriverAlertText>
+              AI model flagged {driverRiskAlert.region}; drive carefully through this road area.
+            </DriverAlertText>
+          </DriverAlertCopy>
+          <IconButton onPress={() => setDriverRiskAlert(null)} accessibilityLabel="Dismiss risk alert">
+            <X size={16} color={colors.textStrong} />
+          </IconButton>
+        </DriverAlertPanel>
+      ) : null}
+
       <Fab
         onPress={handleReportPress}
         disabled={isCapturingLocation}
@@ -209,13 +337,13 @@ export default function App() {
       <LocateButton
         onPress={() =>
           setMapFocus({
-            ...SAN_JOSE_CENTER,
-            latitudeDelta: 0.08,
-            longitudeDelta: 0.08
+            ...BAY_AREA_CENTER,
+            latitudeDelta: 0.78,
+            longitudeDelta: 0.9
           })
         }
         accessibilityRole="button"
-        accessibilityLabel="Center on San Jose"
+        accessibilityLabel="Center on Bay Area"
       >
         <Crosshair size={20} color={colors.textStrong} />
       </LocateButton>
@@ -256,6 +384,48 @@ const DetailsPanel = styled.View`
   border-width: 1px;
   border-color: ${colors.border};
   ${shadows.panel}
+`;
+
+const DriverAlertPanel = styled.View`
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: ${({ $raised }) => ($raised ? 260 : 98)}px;
+  padding: 12px;
+  border-radius: ${radii.panel}px;
+  background-color: ${colors.surface};
+  border-width: 1px;
+  border-color: rgba(248, 113, 113, 0.45);
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  z-index: 9;
+  ${shadows.panel}
+`;
+
+const DriverAlertIcon = styled.View`
+  width: 38px;
+  height: 38px;
+  border-radius: 19px;
+  align-items: center;
+  justify-content: center;
+  background-color: ${colors.warning};
+`;
+
+const DriverAlertCopy = styled.View`
+  flex: 1;
+`;
+
+const DriverAlertTitle = styled.Text`
+  color: ${colors.textStrong};
+  font-size: 14px;
+  font-weight: 900;
+`;
+
+const DriverAlertText = styled.Text`
+  color: ${colors.textMuted};
+  font-size: 12px;
+  margin-top: 2px;
 `;
 
 const DetailsHeader = styled.View`

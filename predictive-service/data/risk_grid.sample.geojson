@@ -1,0 +1,146 @@
+{
+  "type": "FeatureCollection",
+  "properties": {
+    "name": "Sample San Jose pothole probability risk grid",
+    "grid_size_meters": 100,
+    "generated_at": "2026-04-24T12:00:00-07:00"
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "id": "sample-downtown-1",
+      "properties": {
+        "cell_id": "sample-downtown-1",
+        "probability_score": 0.82,
+        "risk_band": "high",
+        "temporal_frequency_24m": 7,
+        "seasonality_weight": 1.35,
+        "infrastructure_decay": 0.74,
+        "center": { "latitude": 37.33372, "longitude": -121.88722 }
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-121.8878,37.3332],[-121.8866,37.3332],[-121.8866,37.3342],[-121.8878,37.3342],[-121.8878,37.3332]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "sample-downtown-2",
+      "properties": {
+        "cell_id": "sample-downtown-2",
+        "probability_score": 0.67,
+        "risk_band": "medium",
+        "temporal_frequency_24m": 5,
+        "seasonality_weight": 1.35,
+        "infrastructure_decay": 0.63,
+        "center": { "latitude": 37.3349, "longitude": -121.8848 }
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-121.8854,37.3344],[-121.8842,37.3344],[-121.8842,37.3354],[-121.8854,37.3354],[-121.8854,37.3344]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "sample-the-alameda",
+      "properties": {
+        "cell_id": "sample-the-alameda",
+        "probability_score": 0.54,
+        "risk_band": "medium",
+        "temporal_frequency_24m": 4,
+        "seasonality_weight": 1,
+        "infrastructure_decay": 0.48,
+        "center": { "latitude": 37.33273, "longitude": -121.91299 }
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-121.9136,37.3322],[-121.9124,37.3322],[-121.9124,37.3332],[-121.9136,37.3332],[-121.9136,37.3322]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "sample-willow-glen",
+      "properties": {
+        "cell_id": "sample-willow-glen",
+        "probability_score": 0.61,
+        "risk_band": "medium",
+        "temporal_frequency_24m": 5,
+        "seasonality_weight": 1,
+        "infrastructure_decay": 0.56,
+        "center": { "latitude": 37.30814, "longitude": -121.91381 }
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-121.9144,37.3076],[-121.9132,37.3076],[-121.9132,37.3086],[-121.9144,37.3086],[-121.9144,37.3076]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "sample-japantown",
+      "properties": {
+        "cell_id": "sample-japantown",
+        "probability_score": 0.45,
+        "risk_band": "medium",
+        "temporal_frequency_24m": 3,
+        "seasonality_weight": 1,
+        "infrastructure_decay": 0.39,
+        "center": { "latitude": 37.35324, "longitude": -121.88735 }
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-121.888,37.3527],[-121.8868,37.3527],[-121.8868,37.3537],[-121.888,37.3537],[-121.888,37.3527]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "sample-berryessa",
+      "properties": {
+        "cell_id": "sample-berryessa",
+        "probability_score": 0.76,
+        "risk_band": "high",
+        "temporal_frequency_24m": 6,
+        "seasonality_weight": 1.35,
+        "infrastructure_decay": 0.68,
+        "center": { "latitude": 37.3863, "longitude": -121.87672 }
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-121.8773,37.3858],[-121.8761,37.3858],[-121.8761,37.3868],[-121.8773,37.3868],[-121.8773,37.3858]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "sample-evergreen",
+      "properties": {
+        "cell_id": "sample-evergreen",
+        "probability_score": 0.58,
+        "risk_band": "medium",
+        "temporal_frequency_24m": 4,
+        "seasonality_weight": 1.35,
+        "infrastructure_decay": 0.52,
+        "center": { "latitude": 37.30916, "longitude": -121.79516 }
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-121.7958,37.3086],[-121.7946,37.3086],[-121.7946,37.3096],[-121.7958,37.3096],[-121.7958,37.3086]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "sample-cambrian",
+      "properties": {
+        "cell_id": "sample-cambrian",
+        "probability_score": 0.71,
+        "risk_band": "medium",
+        "temporal_frequency_24m": 6,
+        "seasonality_weight": 1.35,
+        "infrastructure_decay": 0.66,
+        "center": { "latitude": 37.26038, "longitude": -121.92974 }
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-121.9304,37.2599],[-121.9292,37.2599],[-121.9292,37.2609],[-121.9304,37.2609],[-121.9304,37.2599]]]
+      }
+    }
+  ]
+}

@@ -41,6 +41,10 @@ export default function MapComponent({
       customMapStyle={MODERN_MAP_STYLE}
       showsUserLocation
       showsMyLocationButton={false}
+      showsBuildings={false}
+      showsIndoors={false}
+      showsPointsOfInterest={false}
+      showsTraffic={false}
       toolbarEnabled={false}
       mapPadding={{ top: 158, right: 16, bottom: 152, left: 16 }}
     >

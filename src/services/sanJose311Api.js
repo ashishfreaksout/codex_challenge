@@ -1,6 +1,7 @@
 import { MOCK_SAN_JOSE_311_RESPONSE } from "../data/MockData";
 
-const endpoint = process.env.EXPO_PUBLIC_SAN_JOSE_311_ENDPOINT;
+const endpoint =
+  process.env.EXPO_PUBLIC_BAY_AREA_311_ENDPOINT ?? process.env.EXPO_PUBLIC_SAN_JOSE_311_ENDPOINT;
 
 export async function fetchSanJose311Potholes() {
   const records = endpoint ? await fetchRecordsFromEndpoint(endpoint) : MOCK_SAN_JOSE_311_RESPONSE;
@@ -12,13 +13,13 @@ async function fetchRecordsFromEndpoint(url) {
     const response = await fetch(url);
 
     if (!response.ok) {
-      throw new Error(`San Jose 311 request failed with ${response.status}`);
+      throw new Error(`311 request failed with ${response.status}`);
     }
 
     const payload = await response.json();
     return Array.isArray(payload) ? payload : payload.records || payload.data || [];
   } catch (error) {
-    console.warn("Falling back to mock San Jose 311 data:", error.message);
+    console.warn("Falling back to mock Bay Area 311 data:", error.message);
     return MOCK_SAN_JOSE_311_RESPONSE;
   }
 }
@@ -53,12 +54,12 @@ export function normalizeSanJose311Record(record) {
       record.request_id ??
       record.case_id ??
       `sj311-${latitude}-${longitude}`,
-    source: "San Jose 311",
+    source: record.source ?? (idPrefix(record) === "SJ311" ? "San Jose 311" : "Bay Area 311 mock"),
     title: `${serviceName} report`,
     status: status.includes("closed") || status.includes("fixed") ? "fixed" : "reported",
     severity: record.severity ?? inferSeverity(record.description ?? record.notes ?? ""),
     notes: record.description ?? record.notes ?? record.description_text ?? "",
-    address: record.address ?? record.street_address ?? "San Jose, CA",
+    address: record.address ?? record.street_address ?? "Bay Area, CA",
     requestedAt: record.requested_datetime ?? record.created_at ?? record.opened_at ?? null,
     updatedAt: record.updated_datetime ?? record.updated_at ?? record.closed_at ?? null,
     coordinate: {
@@ -67,6 +68,11 @@ export function normalizeSanJose311Record(record) {
     },
     raw: record
   };
+}
+
+function idPrefix(record) {
+  const identifier = record.service_request_id ?? record.request_id ?? record.case_id ?? "";
+  return String(identifier).split("-")[0];
 }
 
 function inferSeverity(text) {
