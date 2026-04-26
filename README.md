@@ -55,3 +55,29 @@ POST http://localhost:4000/api/v1/report
 ```
 
 The web app uses `EXPO_PUBLIC_PREDICTION_SERVICE_URL` and the `AI Predicted Hotspots` view mode to render the probability gradient layer.
+
+## Hugging Face Deployment
+
+For a hosted prediction API, deploy the FastAPI/Docker Space in `deployment/huggingface-space`. It keeps the same endpoint contract as the local Node service, so the app only needs `EXPO_PUBLIC_PREDICTION_SERVICE_URL` changed to the Space runtime URL.
+
+Prepare the Space bundle:
+
+```bash
+bash scripts/prepare_hf_space.sh
+```
+
+Then create a Hugging Face Docker Space and push the generated files:
+
+```bash
+python3 -m pip install -U huggingface_hub
+hf auth login
+scripts/deploy_hf_space.sh <your-user>/bay-area-pothole-prediction-api
+```
+
+After the Space is running, set the app to use it:
+
+```bash
+EXPO_PUBLIC_PREDICTION_SERVICE_URL=https://<your-user>-bay-area-pothole-prediction-api.hf.space
+```
+
+Free Spaces can sleep when idle. The `/api/v1/refresh` endpoint rebuilds the risk grid from the bundled historical and environmental data; for production, trigger that endpoint from a scheduled job after updating the input CSVs from 311, rainfall, drainage, pavement, and traffic pipelines. User report updates sent to `/api/v1/report` adjust the in-memory nearby sector immediately, but should be persisted to Firestore or a hosted database before relying on them across restarts.
