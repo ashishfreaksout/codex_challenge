@@ -1,4 +1,5 @@
-const DEFAULT_PREDICTION_SERVICE_URL = "http://localhost:4000";
+const DEFAULT_PREDICTION_SERVICE_URL =
+  "https://ashishfreaksout-bay-area-pothole-prediction-api.hf.space";
 
 export function predictionServiceUrl() {
   return (
