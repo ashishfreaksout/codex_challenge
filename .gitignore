@@ -3,3 +3,6 @@ node_modules
 .venv
 dist
 predictive-service/data/risk_grid.geojson
+.env
+.env.*
+!.env.example

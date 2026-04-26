@@ -21,7 +21,7 @@ npx eas-cli build -p android --profile preview
 
 ## Configuration
 
-Create `.env` from `.env.example` and set `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY`. The native app uses the same key through `app.config.js`; the web map uses it through `MapComponent.web.js`.
+Create `.env` from `.env.example` and set `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY`. The native app uses the same key through `app.config.js`; the web map uses it through `MapComponent.web.js`. Keep `.env` local only; it is ignored by Git so demo or production API keys are not committed.
 
 Without a Google Maps key, the web app shows an OpenStreetMap-based Bay Area preview with the mock pothole data so the UI can still be reviewed. Add the key to switch the web build to Google Maps.
 
