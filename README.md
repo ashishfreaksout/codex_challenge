@@ -71,13 +71,13 @@ Then create a Hugging Face Docker Space and push the generated files:
 ```bash
 python3 -m pip install -U huggingface_hub
 hf auth login
-scripts/deploy_hf_space.sh <your-user>/bay-area-pothole-prediction-api
+scripts/deploy_hf_space.sh ashishfreaksout/bay-area-pothole-prediction-api
 ```
 
 After the Space is running, set the app to use it:
 
 ```bash
-EXPO_PUBLIC_PREDICTION_SERVICE_URL=https://<your-user>-bay-area-pothole-prediction-api.hf.space
+EXPO_PUBLIC_PREDICTION_SERVICE_URL=https://ashishfreaksout-bay-area-pothole-prediction-api.hf.space
 ```
 
 Free Spaces can sleep when idle. The `/api/v1/refresh` endpoint rebuilds the risk grid from the bundled historical and environmental data; for production, trigger that endpoint from a scheduled job after updating the input CSVs from 311, rainfall, drainage, pavement, and traffic pipelines. User report updates sent to `/api/v1/report` adjust the in-memory nearby sector immediately, but should be persisted to Firestore or a hosted database before relying on them across restarts.
