@@ -42,6 +42,11 @@ module.exports = {
     web: {
       bundler: "metro"
     },
+    extra: {
+      eas: {
+        projectId: "cc1194b2-1822-4611-b9c7-e307eae4868e"
+      }
+    },
     plugins: [
       [
         "expo-location",

@@ -27,6 +27,7 @@ import styled from "styled-components/native";
 
 import MapComponent from "./src/components/MapComponent";
 import ReportPotholeModal from "./src/components/ReportPotholeModal";
+import SandboxNavigationScene from "./src/components/SandboxNavigationScene";
 import SearchBar from "./src/components/SearchBar";
 import StatusFilter from "./src/components/StatusFilter";
 import ViewModeSwitch from "./src/components/ViewModeSwitch";
@@ -435,22 +436,31 @@ export default function App() {
   const activeDriverLocation = sandboxNavigationActive
     ? sandboxNavigationLocation
     : sandboxDriverLocation;
+  const useSandboxNavigationScene =
+    sandboxNavigationActive && !process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
 
   return (
     <Screen>
       <StatusBar style="light" translucent />
-      <MapComponent
-        potholes={viewMode === "reported" ? filteredPotholes : []}
-        selectedPothole={selectedPothole}
-        focusLocation={mapFocus}
-        draftLocation={reportVisible ? draftLocation : null}
-        driverLocation={activeDriverLocation}
-        driverHeading={sandboxNavigationHeading}
-        navigationMode={sandboxNavigationActive}
-        onMarkerPress={setSelectedPothole}
-        viewMode={viewMode}
-        predictionRefreshToken={predictionRefreshToken}
-      />
+      {useSandboxNavigationScene ? (
+        <SandboxNavigationScene
+          driverLocation={activeDriverLocation}
+          driverHeading={sandboxNavigationHeading}
+        />
+      ) : (
+        <MapComponent
+          potholes={viewMode === "reported" ? filteredPotholes : []}
+          selectedPothole={selectedPothole}
+          focusLocation={mapFocus}
+          draftLocation={reportVisible ? draftLocation : null}
+          driverLocation={activeDriverLocation}
+          driverHeading={sandboxNavigationHeading}
+          navigationMode={sandboxNavigationActive}
+          onMarkerPress={setSelectedPothole}
+          viewMode={viewMode}
+          predictionRefreshToken={predictionRefreshToken}
+        />
+      )}
 
       {sandboxNavigationActive ? (
         <NavigationHud $top={statusBarOffset + 12}>
