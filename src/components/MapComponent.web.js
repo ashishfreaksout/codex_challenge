@@ -33,6 +33,7 @@ export default function MapComponent({
   selectedPothole,
   focusLocation,
   draftLocation,
+  driverLocation,
   onMarkerPress,
   viewMode,
   predictionRefreshToken
@@ -46,6 +47,7 @@ export default function MapComponent({
         potholes={potholes}
         selectedPothole={selectedPothole}
         draftLocation={draftLocation}
+        driverLocation={driverLocation}
         focusLocation={focusLocation}
         onMarkerPress={onMarkerPress}
         viewMode={viewMode}
@@ -61,6 +63,7 @@ export default function MapComponent({
       selectedPothole={selectedPothole}
       focusLocation={focusLocation}
       draftLocation={draftLocation}
+      driverLocation={driverLocation}
       onMarkerPress={onMarkerPress}
       viewMode={viewMode}
       predictionState={predictionState}
@@ -120,6 +123,7 @@ function LoadedGoogleMap({
   selectedPothole,
   focusLocation,
   draftLocation,
+  driverLocation,
   onMarkerPress,
   viewMode,
   predictionState
@@ -231,6 +235,20 @@ function LoadedGoogleMap({
           />
         ) : null}
 
+        {driverLocation ? (
+          <MarkerF
+            position={{ lat: driverLocation.latitude, lng: driverLocation.longitude }}
+            icon={{
+              path: google.maps.SymbolPath.CIRCLE,
+              scale: 10,
+              fillColor: colors.accent,
+              fillOpacity: 1,
+              strokeColor: colors.ink,
+              strokeWeight: 3
+            }}
+          />
+        ) : null}
+
         {selectedPothole ? (
           <InfoWindowF
             position={{
@@ -271,6 +289,7 @@ function FallbackPreviewMap({
   potholes,
   selectedPothole,
   draftLocation,
+  driverLocation,
   focusLocation,
   onMarkerPress,
   viewMode,
@@ -424,6 +443,15 @@ function FallbackPreviewMap({
             $top={projectCoordinate(focusLocation).top}
             $left={projectCoordinate(focusLocation).left}
           />
+        ) : null}
+
+        {driverLocation ? (
+          <DriverMarker
+            $top={projectCoordinate(driverLocation).top}
+            $left={projectCoordinate(driverLocation).left}
+          >
+            <DriverMarkerCenter />
+          </DriverMarker>
         ) : null}
 
         {viewMode === "reported" ? potholes.map((pothole) => {
@@ -675,6 +703,32 @@ const DraftMarkerCenter = styled.View`
   width: 12px;
   height: 12px;
   border-radius: 6px;
+  background-color: ${colors.accent};
+  border-width: 2px;
+  border-color: ${colors.white};
+`;
+
+const DriverMarker = styled.View`
+  position: absolute;
+  top: ${({ $top }) => $top}px;
+  left: ${({ $left }) => $left}px;
+  width: 34px;
+  height: 34px;
+  margin-left: -17px;
+  margin-top: -17px;
+  border-radius: 17px;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(37, 99, 235, 0.24);
+  border-width: 2px;
+  border-color: rgba(15, 23, 42, 0.78);
+  z-index: 7;
+`;
+
+const DriverMarkerCenter = styled.View`
+  width: 14px;
+  height: 14px;
+  border-radius: 7px;
   background-color: ${colors.accent};
   border-width: 2px;
   border-color: ${colors.white};

@@ -46,6 +46,18 @@ The training script applies a road/land prediction mask before writing GeoJSON. 
 
 The mobile app also watches foreground GPS location and checks the prediction service for nearby high-risk cells. If the driver enters a high-probability area, it shows a temporary warning banner and dismisses it automatically after a few seconds. For a physical APK/IPA, set `EXPO_PUBLIC_PREDICTION_SERVICE_URL` to a reachable LAN or hosted service URL instead of `localhost`.
 
+## Sandbox Driving Test
+
+Dev builds show a `Test drive` button next to the recenter control. It simulates a driver moving through high-risk Downtown San Jose model cells, switches to `AI Predicted Hotspots`, pans the map with a blue driver tracker dot, and triggers the same high-risk warning banner used by live GPS.
+
+For a production preview APK/IPA, enable the simulator explicitly:
+
+```bash
+EXPO_PUBLIC_ENABLE_SANDBOX_DRIVER=true npx eas build -p android --profile preview
+```
+
+Keep `EXPO_PUBLIC_ENABLE_SANDBOX_DRIVER=false` for normal release builds.
+
 The service exposes:
 
 ```text

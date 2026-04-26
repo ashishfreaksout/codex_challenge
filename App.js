@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import * as Location from "expo-location";
 import { StatusBar } from "expo-status-bar";
-import { AlertTriangle, Crosshair, MapPin, Plus, X } from "lucide-react-native";
+import { AlertTriangle, Crosshair, MapPin, Play, Plus, Square, X } from "lucide-react-native";
 import styled from "styled-components/native";
 
 import MapComponent from "./src/components/MapComponent";
@@ -18,6 +18,10 @@ import SearchBar from "./src/components/SearchBar";
 import StatusFilter from "./src/components/StatusFilter";
 import ViewModeSwitch from "./src/components/ViewModeSwitch";
 import { BAY_AREA_CENTER } from "./src/constants/neighborhoods";
+import {
+  SANDBOX_DRIVER_ROUTE,
+  SANDBOX_DRIVER_STEP_MS
+} from "./src/constants/sandboxDriverRoute";
 import {
   createPotholeReport,
   subscribeToPotholes
@@ -31,6 +35,9 @@ import { colors, radii, shadows } from "./src/theme";
 const statusBarOffset = Platform.OS === "android" ? RNStatusBar.currentHeight || 0 : 0;
 const RISK_ALERT_DURATION_MS = 7500;
 const RISK_ALERT_COOLDOWN_MS = 65000;
+const isDevelopmentRuntime = typeof __DEV__ !== "undefined" && __DEV__;
+const sandboxDriverEnabled =
+  isDevelopmentRuntime || process.env.EXPO_PUBLIC_ENABLE_SANDBOX_DRIVER === "true";
 
 export default function App() {
   const [potholes, setPotholes] = useState([]);
@@ -44,9 +51,71 @@ export default function App() {
   const [viewMode, setViewMode] = useState("reported");
   const [predictionRefreshToken, setPredictionRefreshToken] = useState(0);
   const [driverRiskAlert, setDriverRiskAlert] = useState(null);
+  const [sandboxDriverActive, setSandboxDriverActive] = useState(false);
+  const [sandboxDriverLocation, setSandboxDriverLocation] = useState(null);
+  const driverAlertTimerRef = useRef(null);
+  const mountedRef = useRef(true);
   const lastRiskAlertAtRef = useRef(0);
   const lastRiskCellRef = useRef(null);
   const riskCheckInFlightRef = useRef(false);
+
+  const scheduleDriverAlertDismiss = useCallback(() => {
+    if (driverAlertTimerRef.current) {
+      clearTimeout(driverAlertTimerRef.current);
+    }
+
+    driverAlertTimerRef.current = setTimeout(() => {
+      if (mountedRef.current) {
+        setDriverRiskAlert(null);
+      }
+    }, RISK_ALERT_DURATION_MS);
+  }, []);
+
+  const runDriverRiskCheck = useCallback(
+    async (coordinate, { force = false, source = "live" } = {}) => {
+      if (riskCheckInFlightRef.current) {
+        return;
+      }
+
+      const now = Date.now();
+      if (!force && now - lastRiskAlertAtRef.current < RISK_ALERT_COOLDOWN_MS) {
+        return;
+      }
+
+      riskCheckInFlightRef.current = true;
+      try {
+        const highRiskFeature = await fetchHighRiskPredictionNearLocation(coordinate);
+        const cellId = highRiskFeature?.properties?.cell_id;
+        if (!mountedRef.current || !highRiskFeature || (!force && cellId === lastRiskCellRef.current)) {
+          return;
+        }
+
+        lastRiskAlertAtRef.current = now;
+        lastRiskCellRef.current = cellId;
+        setDriverRiskAlert({
+          id: cellId,
+          score: Number(highRiskFeature.properties?.probability_score || 0),
+          region: highRiskFeature.properties?.environment_source_region || coordinate.label || "this area",
+          source
+        });
+        scheduleDriverAlertDismiss();
+      } catch (error) {
+        console.warn("Driver pothole risk check skipped:", error.message);
+      } finally {
+        riskCheckInFlightRef.current = false;
+      }
+    },
+    [scheduleDriverAlertDismiss]
+  );
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+      if (driverAlertTimerRef.current) {
+        clearTimeout(driverAlertTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const unsubscribe = subscribeToPotholes(setPotholes);
@@ -55,7 +124,6 @@ export default function App() {
 
   useEffect(() => {
     let locationSubscription = null;
-    let alertTimer = null;
     let mounted = true;
 
     async function startDriverRiskAlerts() {
@@ -71,49 +139,11 @@ export default function App() {
             distanceInterval: 120,
             timeInterval: 15000
           },
-          async ({ coords }) => {
-            if (riskCheckInFlightRef.current) {
-              return;
-            }
-
-            const now = Date.now();
-            if (now - lastRiskAlertAtRef.current < RISK_ALERT_COOLDOWN_MS) {
-              return;
-            }
-
-            riskCheckInFlightRef.current = true;
-            try {
-              const highRiskFeature = await fetchHighRiskPredictionNearLocation({
-                latitude: coords.latitude,
-                longitude: coords.longitude
-              });
-
-              const cellId = highRiskFeature?.properties?.cell_id;
-              if (!mounted || !highRiskFeature || cellId === lastRiskCellRef.current) {
-                return;
-              }
-
-              lastRiskAlertAtRef.current = now;
-              lastRiskCellRef.current = cellId;
-              setDriverRiskAlert({
-                id: cellId,
-                score: Number(highRiskFeature.properties?.probability_score || 0),
-                region: highRiskFeature.properties?.environment_source_region || "this area"
-              });
-
-              if (alertTimer) {
-                clearTimeout(alertTimer);
-              }
-              alertTimer = setTimeout(() => {
-                if (mounted) {
-                  setDriverRiskAlert(null);
-                }
-              }, RISK_ALERT_DURATION_MS);
-            } catch (error) {
-              console.warn("Driver pothole risk check skipped:", error.message);
-            } finally {
-              riskCheckInFlightRef.current = false;
-            }
+          ({ coords }) => {
+            runDriverRiskCheck({
+              latitude: coords.latitude,
+              longitude: coords.longitude
+            });
           }
         );
       } catch (error) {
@@ -125,12 +155,44 @@ export default function App() {
 
     return () => {
       mounted = false;
-      if (alertTimer) {
-        clearTimeout(alertTimer);
-      }
       locationSubscription?.remove();
     };
-  }, []);
+  }, [runDriverRiskCheck]);
+
+  useEffect(() => {
+    if (!sandboxDriverActive) {
+      setSandboxDriverLocation(null);
+      return undefined;
+    }
+
+    let routeIndex = 0;
+
+    const moveToNextSandboxPoint = () => {
+      const point = SANDBOX_DRIVER_ROUTE[routeIndex % SANDBOX_DRIVER_ROUTE.length];
+      routeIndex += 1;
+
+      const coordinate = {
+        latitude: point.latitude,
+        longitude: point.longitude,
+        latitudeDelta: 0.012,
+        longitudeDelta: 0.012,
+        label: point.label
+      };
+
+      setSandboxDriverLocation(coordinate);
+      setMapFocus(coordinate);
+      setViewMode("predicted");
+      setSelectedPothole(null);
+      runDriverRiskCheck(coordinate, { force: true, source: "sandbox" });
+    };
+
+    moveToNextSandboxPoint();
+    const interval = setInterval(moveToNextSandboxPoint, SANDBOX_DRIVER_STEP_MS);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [runDriverRiskCheck, sandboxDriverActive]);
 
   const filteredPotholes = useMemo(() => {
     if (statusFilter === "all") {
@@ -254,6 +316,7 @@ export default function App() {
         selectedPothole={selectedPothole}
         focusLocation={mapFocus}
         draftLocation={reportVisible ? draftLocation : null}
+        driverLocation={sandboxDriverLocation}
         onMarkerPress={setSelectedPothole}
         viewMode={viewMode}
         predictionRefreshToken={predictionRefreshToken}
@@ -302,14 +365,21 @@ export default function App() {
       ) : null}
 
       {driverRiskAlert ? (
-        <DriverAlertPanel $raised={selectedPothole && viewMode === "reported"}>
+        <DriverAlertPanel
+          $bottom={viewMode === "predicted" ? 210 : selectedPothole && viewMode === "reported" ? 260 : 98}
+        >
           <DriverAlertIcon>
             <AlertTriangle size={20} color={colors.white} />
           </DriverAlertIcon>
           <DriverAlertCopy>
-            <DriverAlertTitle>High pothole probability nearby</DriverAlertTitle>
+            <DriverAlertTitle>
+              {driverRiskAlert.source === "sandbox"
+                ? "Sandbox high-risk road area"
+                : "High pothole probability nearby"}
+            </DriverAlertTitle>
             <DriverAlertText>
-              AI model flagged {driverRiskAlert.region}; drive carefully through this road area.
+              AI model flagged {driverRiskAlert.region} at {Math.round(driverRiskAlert.score * 100)}%
+              probability; drive carefully through this road area.
             </DriverAlertText>
           </DriverAlertCopy>
           <IconButton onPress={() => setDriverRiskAlert(null)} accessibilityLabel="Dismiss risk alert">
@@ -347,6 +417,22 @@ export default function App() {
       >
         <Crosshair size={20} color={colors.textStrong} />
       </LocateButton>
+
+      {sandboxDriverEnabled ? (
+        <SandboxButton
+          onPress={() => setSandboxDriverActive((active) => !active)}
+          accessibilityRole="button"
+          accessibilityLabel={sandboxDriverActive ? "Stop sandbox drive" : "Start sandbox drive"}
+          $active={sandboxDriverActive}
+        >
+          {sandboxDriverActive ? (
+            <Square size={16} color={colors.white} fill={colors.white} />
+          ) : (
+            <Play size={17} color={colors.white} fill={colors.white} />
+          )}
+          <SandboxButtonText>{sandboxDriverActive ? "Stop test" : "Test drive"}</SandboxButtonText>
+        </SandboxButton>
+      ) : null}
 
       <ReportPotholeModal
         visible={reportVisible}
@@ -390,7 +476,7 @@ const DriverAlertPanel = styled.View`
   position: absolute;
   left: 14px;
   right: 14px;
-  bottom: ${({ $raised }) => ($raised ? 260 : 98)}px;
+  bottom: ${({ $bottom }) => $bottom}px;
   padding: 12px;
   border-radius: ${radii.panel}px;
   background-color: ${colors.surface};
@@ -547,4 +633,26 @@ const LocateButton = styled(Pressable)`
   border-width: 1px;
   border-color: ${colors.border};
   ${shadows.panel}
+`;
+
+const SandboxButton = styled(Pressable)`
+  position: absolute;
+  left: 78px;
+  bottom: 34px;
+  min-width: 126px;
+  height: 48px;
+  border-radius: 24px;
+  padding: 0 14px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background-color: ${({ $active }) => ($active ? colors.warningDark : colors.ink)};
+  ${shadows.panel}
+`;
+
+const SandboxButtonText = styled.Text`
+  color: ${colors.white};
+  font-size: 13px;
+  font-weight: 900;
 `;

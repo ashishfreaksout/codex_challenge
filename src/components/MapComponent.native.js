@@ -12,6 +12,7 @@ export default function MapComponent({
   selectedPothole,
   focusLocation,
   draftLocation,
+  driverLocation,
   onMarkerPress
 }) {
   const mapRef = useRef(null);
@@ -70,6 +71,14 @@ export default function MapComponent({
           <DraftPulse>
             <DraftCenter />
           </DraftPulse>
+        </Marker>
+      ) : null}
+
+      {driverLocation ? (
+        <Marker coordinate={driverLocation} anchor={{ x: 0.5, y: 0.5 }}>
+          <DriverPulse>
+            <DriverCenter />
+          </DriverPulse>
         </Marker>
       ) : null}
     </MapView>
@@ -149,6 +158,26 @@ const DraftCenter = styled.View`
   width: 12px;
   height: 12px;
   border-radius: 6px;
+  background-color: ${colors.accent};
+  border-width: 2px;
+  border-color: ${colors.white};
+`;
+
+const DriverPulse = styled.View`
+  width: 34px;
+  height: 34px;
+  border-radius: 17px;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(37, 99, 235, 0.24);
+  border-width: 2px;
+  border-color: rgba(15, 23, 42, 0.78);
+`;
+
+const DriverCenter = styled.View`
+  width: 14px;
+  height: 14px;
+  border-radius: 7px;
   background-color: ${colors.accent};
   border-width: 2px;
   border-color: ${colors.white};
