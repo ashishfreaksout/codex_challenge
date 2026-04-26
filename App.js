@@ -9,7 +9,20 @@ import {
 } from "react-native";
 import * as Location from "expo-location";
 import { StatusBar } from "expo-status-bar";
-import { AlertTriangle, Crosshair, MapPin, Play, Plus, Square, X } from "lucide-react-native";
+import {
+  AlertTriangle,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
+  Crosshair,
+  MapPin,
+  Navigation,
+  Play,
+  Plus,
+  Square,
+  X
+} from "lucide-react-native";
 import styled from "styled-components/native";
 
 import MapComponent from "./src/components/MapComponent";
@@ -19,6 +32,10 @@ import StatusFilter from "./src/components/StatusFilter";
 import ViewModeSwitch from "./src/components/ViewModeSwitch";
 import { BAY_AREA_CENTER } from "./src/constants/neighborhoods";
 import {
+  SANDBOX_3D_NAVIGATION_HEADING,
+  SANDBOX_3D_NAVIGATION_MOVE_METERS,
+  SANDBOX_3D_NAVIGATION_START,
+  SANDBOX_3D_NAVIGATION_TURN_DEGREES,
   SANDBOX_DRIVER_ROUTE,
   SANDBOX_DRIVER_STEP_MS
 } from "./src/constants/sandboxDriverRoute";
@@ -36,8 +53,12 @@ const statusBarOffset = Platform.OS === "android" ? RNStatusBar.currentHeight ||
 const RISK_ALERT_DURATION_MS = 7500;
 const RISK_ALERT_COOLDOWN_MS = 65000;
 const isDevelopmentRuntime = typeof __DEV__ !== "undefined" && __DEV__;
+const sandbox3DNavigationEnabled =
+  process.env.EXPO_PUBLIC_ENABLE_3D_SANDBOX_NAVIGATION === "true";
 const sandboxDriverEnabled =
-  isDevelopmentRuntime || process.env.EXPO_PUBLIC_ENABLE_SANDBOX_DRIVER === "true";
+  sandbox3DNavigationEnabled ||
+  isDevelopmentRuntime ||
+  process.env.EXPO_PUBLIC_ENABLE_SANDBOX_DRIVER === "true";
 
 export default function App() {
   const [potholes, setPotholes] = useState([]);
@@ -53,8 +74,15 @@ export default function App() {
   const [driverRiskAlert, setDriverRiskAlert] = useState(null);
   const [sandboxDriverActive, setSandboxDriverActive] = useState(false);
   const [sandboxDriverLocation, setSandboxDriverLocation] = useState(null);
+  const [sandboxNavigationActive, setSandboxNavigationActive] = useState(sandbox3DNavigationEnabled);
+  const [sandboxNavigationLocation, setSandboxNavigationLocation] = useState(null);
+  const [sandboxNavigationHeading, setSandboxNavigationHeading] = useState(
+    SANDBOX_3D_NAVIGATION_HEADING
+  );
   const driverAlertTimerRef = useRef(null);
   const mountedRef = useRef(true);
+  const sandboxNavigationLocationRef = useRef(null);
+  const sandboxNavigationHeadingRef = useRef(SANDBOX_3D_NAVIGATION_HEADING);
   const lastRiskAlertAtRef = useRef(0);
   const lastRiskCellRef = useRef(null);
   const riskCheckInFlightRef = useRef(false);
@@ -72,7 +100,10 @@ export default function App() {
   }, []);
 
   const runDriverRiskCheck = useCallback(
-    async (coordinate, { force = false, source = "live" } = {}) => {
+    async (
+      coordinate,
+      { force = false, source = "live", latitudeDelta = 0.012, longitudeDelta = 0.012 } = {}
+    ) => {
       if (riskCheckInFlightRef.current) {
         return;
       }
@@ -84,7 +115,10 @@ export default function App() {
 
       riskCheckInFlightRef.current = true;
       try {
-        const highRiskFeature = await fetchHighRiskPredictionNearLocation(coordinate);
+        const highRiskFeature = await fetchHighRiskPredictionNearLocation(coordinate, {
+          latitudeDelta,
+          longitudeDelta
+        });
         const cellId = highRiskFeature?.properties?.cell_id;
         if (!mountedRef.current || !highRiskFeature || (!force && cellId === lastRiskCellRef.current)) {
           return;
@@ -108,6 +142,90 @@ export default function App() {
     [scheduleDriverAlertDismiss]
   );
 
+  const updateSandboxNavigation = useCallback(
+    (coordinate, heading, { checkRisk = true } = {}) => {
+      const nextLocation = {
+        ...coordinate,
+        latitudeDelta: 0.003,
+        longitudeDelta: 0.003,
+        label: coordinate.label || "Downtown San Jose"
+      };
+      const normalizedHeading = normalizeHeading(heading);
+
+      sandboxNavigationLocationRef.current = nextLocation;
+      sandboxNavigationHeadingRef.current = normalizedHeading;
+      setSandboxNavigationLocation(nextLocation);
+      setSandboxNavigationHeading(normalizedHeading);
+      setSandboxDriverLocation(null);
+      setMapFocus({
+        ...nextLocation,
+        heading: normalizedHeading,
+        pitch: 64,
+        navigationMode: true
+      });
+      setViewMode("predicted");
+      setSelectedPothole(null);
+
+      if (checkRisk) {
+        runDriverRiskCheck(nextLocation, {
+          force: true,
+          source: "sandbox3d",
+          latitudeDelta: 0.0022,
+          longitudeDelta: 0.0022
+        });
+      }
+    },
+    [runDriverRiskCheck]
+  );
+
+  const startSandboxNavigation = useCallback(() => {
+    setSandboxDriverActive(false);
+    setSandboxNavigationActive(true);
+    updateSandboxNavigation(
+      {
+        ...SANDBOX_3D_NAVIGATION_START,
+        latitudeDelta: 0.003,
+        longitudeDelta: 0.003
+      },
+      SANDBOX_3D_NAVIGATION_HEADING
+    );
+  }, [updateSandboxNavigation]);
+
+  const stopSandboxNavigation = useCallback(() => {
+    setSandboxNavigationActive(false);
+    setSandboxNavigationLocation(null);
+    sandboxNavigationLocationRef.current = null;
+  }, []);
+
+  const handleSandboxNavigationControl = useCallback(
+    (action) => {
+      const currentLocation =
+        sandboxNavigationLocationRef.current || {
+          ...SANDBOX_3D_NAVIGATION_START,
+          latitudeDelta: 0.003,
+          longitudeDelta: 0.003
+        };
+      const currentHeading = sandboxNavigationHeadingRef.current;
+
+      if (action === "left" || action === "right") {
+        const turn =
+          action === "left"
+            ? -SANDBOX_3D_NAVIGATION_TURN_DEGREES
+            : SANDBOX_3D_NAVIGATION_TURN_DEGREES;
+        updateSandboxNavigation(currentLocation, currentHeading + turn, { checkRisk: false });
+        return;
+      }
+
+      const distance =
+        action === "reverse"
+          ? -SANDBOX_3D_NAVIGATION_MOVE_METERS
+          : SANDBOX_3D_NAVIGATION_MOVE_METERS;
+      const nextLocation = moveCoordinate(currentLocation, currentHeading, distance);
+      updateSandboxNavigation(nextLocation, currentHeading);
+    },
+    [updateSandboxNavigation]
+  );
+
   useEffect(() => {
     return () => {
       mountedRef.current = false;
@@ -121,6 +239,12 @@ export default function App() {
     const unsubscribe = subscribeToPotholes(setPotholes);
     return unsubscribe;
   }, []);
+
+  useEffect(() => {
+    if (sandbox3DNavigationEnabled) {
+      startSandboxNavigation();
+    }
+  }, [startSandboxNavigation]);
 
   useEffect(() => {
     let locationSubscription = null;
@@ -160,7 +284,7 @@ export default function App() {
   }, [runDriverRiskCheck]);
 
   useEffect(() => {
-    if (!sandboxDriverActive) {
+    if (!sandboxDriverActive || sandboxNavigationActive) {
       setSandboxDriverLocation(null);
       return undefined;
     }
@@ -192,7 +316,7 @@ export default function App() {
     return () => {
       clearInterval(interval);
     };
-  }, [runDriverRiskCheck, sandboxDriverActive]);
+  }, [runDriverRiskCheck, sandboxDriverActive, sandboxNavigationActive]);
 
   const filteredPotholes = useMemo(() => {
     if (statusFilter === "all") {
@@ -308,6 +432,10 @@ export default function App() {
     setLocationMessage("");
   };
 
+  const activeDriverLocation = sandboxNavigationActive
+    ? sandboxNavigationLocation
+    : sandboxDriverLocation;
+
   return (
     <Screen>
       <StatusBar style="light" translucent />
@@ -316,25 +444,41 @@ export default function App() {
         selectedPothole={selectedPothole}
         focusLocation={mapFocus}
         draftLocation={reportVisible ? draftLocation : null}
-        driverLocation={sandboxDriverLocation}
+        driverLocation={activeDriverLocation}
+        driverHeading={sandboxNavigationHeading}
+        navigationMode={sandboxNavigationActive}
         onMarkerPress={setSelectedPothole}
         viewMode={viewMode}
         predictionRefreshToken={predictionRefreshToken}
       />
 
-      <TopOverlay $top={statusBarOffset + 12}>
-        <SearchBar onSelectNeighborhood={handleNeighborhoodSelect} />
-        <ViewModeSwitch
-          value={viewMode}
-          onChange={(mode) => {
-            setViewMode(mode);
-            setSelectedPothole(null);
-          }}
-        />
-        {viewMode === "reported" ? (
-          <StatusFilter value={statusFilter} onChange={setStatusFilter} counts={counts} />
-        ) : null}
-      </TopOverlay>
+      {sandboxNavigationActive ? (
+        <NavigationHud $top={statusBarOffset + 12}>
+          <NavigationHudIcon>
+            <Navigation size={18} color={colors.white} />
+          </NavigationHudIcon>
+          <NavigationHudCopy>
+            <NavigationHudTitle>3D sandbox navigation</NavigationHudTitle>
+            <NavigationHudText>
+              Heading {Math.round(sandboxNavigationHeading)} deg near Downtown San Jose
+            </NavigationHudText>
+          </NavigationHudCopy>
+        </NavigationHud>
+      ) : (
+        <TopOverlay $top={statusBarOffset + 12}>
+          <SearchBar onSelectNeighborhood={handleNeighborhoodSelect} />
+          <ViewModeSwitch
+            value={viewMode}
+            onChange={(mode) => {
+              setViewMode(mode);
+              setSelectedPothole(null);
+            }}
+          />
+          {viewMode === "reported" ? (
+            <StatusFilter value={statusFilter} onChange={setStatusFilter} counts={counts} />
+          ) : null}
+        </TopOverlay>
+      )}
 
       {selectedPothole && viewMode === "reported" ? (
         <DetailsPanel>
@@ -366,14 +510,24 @@ export default function App() {
 
       {driverRiskAlert ? (
         <DriverAlertPanel
-          $bottom={viewMode === "predicted" ? 210 : selectedPothole && viewMode === "reported" ? 260 : 98}
+          $bottom={
+            sandboxNavigationActive
+              ? 210
+              : viewMode === "predicted"
+                ? 210
+                : selectedPothole && viewMode === "reported"
+                  ? 260
+                  : 98
+          }
         >
           <DriverAlertIcon>
             <AlertTriangle size={20} color={colors.white} />
           </DriverAlertIcon>
           <DriverAlertCopy>
             <DriverAlertTitle>
-              {driverRiskAlert.source === "sandbox"
+              {driverRiskAlert.source === "sandbox3d"
+                ? "Caution: high pothole probability"
+                : driverRiskAlert.source === "sandbox"
                 ? "Sandbox high-risk road area"
                 : "High pothole probability nearby"}
             </DriverAlertTitle>
@@ -388,37 +542,94 @@ export default function App() {
         </DriverAlertPanel>
       ) : null}
 
-      <Fab
-        onPress={handleReportPress}
-        disabled={isCapturingLocation}
-        accessibilityRole="button"
-        accessibilityLabel="Report pothole"
-      >
-        {isCapturingLocation ? (
-          <ActivityIndicator color={colors.white} />
-        ) : (
-          <>
-            <Plus size={22} color={colors.white} />
-            <FabText>Report</FabText>
-          </>
-        )}
-      </Fab>
+      {!sandboxNavigationActive ? (
+        <Fab
+          onPress={handleReportPress}
+          disabled={isCapturingLocation}
+          accessibilityRole="button"
+          accessibilityLabel="Report pothole"
+        >
+          {isCapturingLocation ? (
+            <ActivityIndicator color={colors.white} />
+          ) : (
+            <>
+              <Plus size={22} color={colors.white} />
+              <FabText>Report</FabText>
+            </>
+          )}
+        </Fab>
+      ) : null}
 
-      <LocateButton
-        onPress={() =>
-          setMapFocus({
-            ...BAY_AREA_CENTER,
-            latitudeDelta: 0.78,
-            longitudeDelta: 0.9
-          })
-        }
-        accessibilityRole="button"
-        accessibilityLabel="Center on Bay Area"
-      >
-        <Crosshair size={20} color={colors.textStrong} />
-      </LocateButton>
+      {!sandboxNavigationActive ? (
+        <LocateButton
+          onPress={() =>
+            setMapFocus({
+              ...BAY_AREA_CENTER,
+              latitudeDelta: 0.78,
+              longitudeDelta: 0.9
+            })
+          }
+          accessibilityRole="button"
+          accessibilityLabel="Center on Bay Area"
+        >
+          <Crosshair size={20} color={colors.textStrong} />
+        </LocateButton>
+      ) : null}
 
-      {sandboxDriverEnabled ? (
+      {sandboxNavigationActive ? (
+        <NavigationExitButton
+          onPress={stopSandboxNavigation}
+          accessibilityRole="button"
+          accessibilityLabel="Exit 3D navigation sandbox"
+        >
+          <X size={16} color={colors.white} />
+          <NavigationExitText>Exit 3D</NavigationExitText>
+        </NavigationExitButton>
+      ) : null}
+
+      {sandboxNavigationActive ? (
+        <JoystickPanel>
+          <JoystickGrid>
+            <JoystickSpacer />
+            <JoystickButton
+              onPress={() => handleSandboxNavigationControl("forward")}
+              accessibilityRole="button"
+              accessibilityLabel="Move forward"
+            >
+              <ChevronUp size={25} color={colors.white} />
+            </JoystickButton>
+            <JoystickSpacer />
+            <JoystickButton
+              onPress={() => handleSandboxNavigationControl("left")}
+              accessibilityRole="button"
+              accessibilityLabel="Turn left"
+            >
+              <ChevronLeft size={25} color={colors.white} />
+            </JoystickButton>
+            <JoystickCenter>
+              <Navigation size={20} color={colors.white} />
+            </JoystickCenter>
+            <JoystickButton
+              onPress={() => handleSandboxNavigationControl("right")}
+              accessibilityRole="button"
+              accessibilityLabel="Turn right"
+            >
+              <ChevronRight size={25} color={colors.white} />
+            </JoystickButton>
+            <JoystickSpacer />
+            <JoystickButton
+              onPress={() => handleSandboxNavigationControl("reverse")}
+              accessibilityRole="button"
+              accessibilityLabel="Reverse"
+            >
+              <ChevronDown size={25} color={colors.white} />
+            </JoystickButton>
+            <JoystickSpacer />
+          </JoystickGrid>
+        </JoystickPanel>
+      ) : null}
+
+      {sandboxDriverEnabled && !sandboxNavigationActive ? (
         <SandboxButton
           onPress={() => setSandboxDriverActive((active) => !active)}
           accessibilityRole="button"
@@ -434,6 +645,17 @@ export default function App() {
         </SandboxButton>
       ) : null}
 
+      {sandboxDriverEnabled && !sandboxNavigationActive ? (
+        <Sandbox3DButton
+          onPress={startSandboxNavigation}
+          accessibilityRole="button"
+          accessibilityLabel="Start 3D navigation sandbox"
+        >
+          <Navigation size={16} color={colors.white} />
+          <SandboxButtonText>3D nav</SandboxButtonText>
+        </Sandbox3DButton>
+      ) : null}
+
       <ReportPotholeModal
         visible={reportVisible}
         coordinate={draftLocation}
@@ -443,6 +665,35 @@ export default function App() {
       />
     </Screen>
   );
+}
+
+function normalizeHeading(value) {
+  return ((value % 360) + 360) % 360;
+}
+
+function moveCoordinate(coordinate, headingDegrees, distanceMeters) {
+  const earthRadiusMeters = 6371000;
+  const bearing = (headingDegrees * Math.PI) / 180;
+  const latitude = (coordinate.latitude * Math.PI) / 180;
+  const longitude = (coordinate.longitude * Math.PI) / 180;
+  const angularDistance = distanceMeters / earthRadiusMeters;
+
+  const nextLatitude = Math.asin(
+    Math.sin(latitude) * Math.cos(angularDistance) +
+      Math.cos(latitude) * Math.sin(angularDistance) * Math.cos(bearing)
+  );
+  const nextLongitude =
+    longitude +
+    Math.atan2(
+      Math.sin(bearing) * Math.sin(angularDistance) * Math.cos(latitude),
+      Math.cos(angularDistance) - Math.sin(latitude) * Math.sin(nextLatitude)
+    );
+
+  return {
+    ...coordinate,
+    latitude: (nextLatitude * 180) / Math.PI,
+    longitude: (nextLongitude * 180) / Math.PI
+  };
 }
 
 const Screen = styled.View`
@@ -457,6 +708,49 @@ const TopOverlay = styled.View`
   right: 14px;
   z-index: 10;
   gap: 10px;
+`;
+
+const NavigationHud = styled.View`
+  position: absolute;
+  top: ${({ $top }) => $top}px;
+  left: 14px;
+  right: 14px;
+  min-height: 62px;
+  padding: 11px 12px;
+  border-radius: ${radii.panel}px;
+  background-color: rgba(15, 23, 42, 0.9);
+  border-width: 1px;
+  border-color: rgba(255, 255, 255, 0.16);
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  z-index: 10;
+  ${shadows.panel}
+`;
+
+const NavigationHudIcon = styled.View`
+  width: 38px;
+  height: 38px;
+  border-radius: 19px;
+  align-items: center;
+  justify-content: center;
+  background-color: ${colors.accent};
+`;
+
+const NavigationHudCopy = styled.View`
+  flex: 1;
+`;
+
+const NavigationHudTitle = styled.Text`
+  color: ${colors.white};
+  font-size: 15px;
+  font-weight: 900;
+`;
+
+const NavigationHudText = styled.Text`
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 12px;
+  margin-top: 2px;
 `;
 
 const DetailsPanel = styled.View`
@@ -651,8 +945,95 @@ const SandboxButton = styled(Pressable)`
   ${shadows.panel}
 `;
 
+const Sandbox3DButton = styled(Pressable)`
+  position: absolute;
+  left: 214px;
+  bottom: 34px;
+  min-width: 104px;
+  height: 48px;
+  border-radius: 24px;
+  padding: 0 14px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background-color: ${colors.accent};
+  ${shadows.panel}
+`;
+
 const SandboxButtonText = styled.Text`
   color: ${colors.white};
   font-size: 13px;
   font-weight: 900;
+`;
+
+const NavigationExitButton = styled(Pressable)`
+  position: absolute;
+  left: 18px;
+  bottom: 34px;
+  height: 48px;
+  min-width: 104px;
+  padding: 0 14px;
+  border-radius: 24px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background-color: rgba(15, 23, 42, 0.92);
+  border-width: 1px;
+  border-color: rgba(255, 255, 255, 0.16);
+  ${shadows.panel}
+`;
+
+const NavigationExitText = styled.Text`
+  color: ${colors.white};
+  font-size: 13px;
+  font-weight: 900;
+`;
+
+const JoystickPanel = styled.View`
+  position: absolute;
+  right: 18px;
+  bottom: 26px;
+  width: 154px;
+  height: 154px;
+  border-radius: 77px;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(15, 23, 42, 0.72);
+  border-width: 1px;
+  border-color: rgba(255, 255, 255, 0.18);
+  ${shadows.fab}
+`;
+
+const JoystickGrid = styled.View`
+  width: 126px;
+  height: 126px;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+`;
+
+const JoystickButton = styled(Pressable)`
+  width: 42px;
+  height: 42px;
+  border-radius: 21px;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(37, 99, 235, 0.96);
+`;
+
+const JoystickCenter = styled.View`
+  width: 42px;
+  height: 42px;
+  border-radius: 21px;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(255, 255, 255, 0.16);
+`;
+
+const JoystickSpacer = styled.View`
+  width: 42px;
+  height: 42px;
 `;

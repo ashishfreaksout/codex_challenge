@@ -16,7 +16,7 @@ Use `npm run web` for the browser build, or `npm run android` after creating nat
 The included `eas.json` has a `preview` profile that exports an internal APK:
 
 ```bash
-npx eas build -p android --profile preview
+npx eas-cli build -p android --profile preview
 ```
 
 ## Configuration
@@ -53,10 +53,18 @@ Dev builds show a `Test drive` button next to the recenter control. It simulates
 For a production preview APK/IPA, enable the simulator explicitly:
 
 ```bash
-EXPO_PUBLIC_ENABLE_SANDBOX_DRIVER=true npx eas build -p android --profile preview
+EXPO_PUBLIC_ENABLE_SANDBOX_DRIVER=true npx eas-cli build -p android --profile preview
 ```
 
 Keep `EXPO_PUBLIC_ENABLE_SANDBOX_DRIVER=false` for normal release builds.
+
+For the 3D joystick navigation sandbox APK, build with:
+
+```bash
+EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=<your-google-maps-key> EXPO_PUBLIC_ENABLE_3D_SANDBOX_NAVIGATION=true npx eas-cli build -p android --profile preview
+```
+
+That build uses the Android package `com.example.bayareapotholes.sandbox3d`, so it can be installed beside the normal app in BlueStacks or on an Android device.
 
 The service exposes:
 

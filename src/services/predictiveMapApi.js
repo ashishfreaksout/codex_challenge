@@ -38,9 +38,10 @@ export async function fetchPredictionModelMetadata() {
   return response.json();
 }
 
-export async function fetchHighRiskPredictionNearLocation(coordinate) {
-  const latitudeDelta = 0.012;
-  const longitudeDelta = 0.012;
+export async function fetchHighRiskPredictionNearLocation(
+  coordinate,
+  { latitudeDelta = 0.012, longitudeDelta = 0.012, minScore = 0.72 } = {}
+) {
   const geojson = await fetchPredictiveMap({
     bbox: [
       coordinate.longitude - longitudeDelta,
@@ -48,7 +49,7 @@ export async function fetchHighRiskPredictionNearLocation(coordinate) {
       coordinate.longitude + longitudeDelta,
       coordinate.latitude + latitudeDelta
     ],
-    minScore: 0.72,
+    minScore,
     limit: 1
   });
 

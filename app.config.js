@@ -1,8 +1,12 @@
 const googleMapsApiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || "";
+const sandbox3DNavigationEnabled =
+  process.env.EXPO_PUBLIC_ENABLE_3D_SANDBOX_NAVIGATION === "true";
 
 module.exports = {
   expo: {
-    name: "Bay Area Pothole Tracker",
+    name: sandbox3DNavigationEnabled
+      ? "Pothole 3D Sandbox"
+      : "Bay Area Pothole Tracker",
     slug: "bay-area-pothole-tracker",
     version: "1.0.0",
     orientation: "portrait",
@@ -13,7 +17,9 @@ module.exports = {
     assetBundlePatterns: ["**/*"],
     ios: {
       supportsTablet: true,
-      bundleIdentifier: "com.example.bayareapotholes",
+      bundleIdentifier: sandbox3DNavigationEnabled
+        ? "com.example.bayareapotholes.sandbox3d"
+        : "com.example.bayareapotholes",
       config: {
         googleMapsApiKey
       },
@@ -23,7 +29,9 @@ module.exports = {
       }
     },
     android: {
-      package: "com.example.bayareapotholes",
+      package: sandbox3DNavigationEnabled
+        ? "com.example.bayareapotholes.sandbox3d"
+        : "com.example.bayareapotholes",
       permissions: ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"],
       config: {
         googleMaps: {

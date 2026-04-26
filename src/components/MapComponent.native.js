@@ -13,12 +13,34 @@ export default function MapComponent({
   focusLocation,
   draftLocation,
   driverLocation,
+  driverHeading = 0,
+  navigationMode = false,
   onMarkerPress
 }) {
   const mapRef = useRef(null);
 
   useEffect(() => {
-    if (!focusLocation || !mapRef.current) {
+    if (!mapRef.current) {
+      return;
+    }
+
+    if (navigationMode && driverLocation) {
+      mapRef.current.animateCamera(
+        {
+          center: {
+            latitude: driverLocation.latitude,
+            longitude: driverLocation.longitude
+          },
+          heading: driverHeading,
+          pitch: 64,
+          zoom: 18
+        },
+        { duration: 420 }
+      );
+      return;
+    }
+
+    if (!focusLocation) {
       return;
     }
 
@@ -31,7 +53,7 @@ export default function MapComponent({
       },
       650
     );
-  }, [focusLocation]);
+  }, [driverHeading, driverLocation, focusLocation, navigationMode]);
 
   return (
     <MapView
@@ -46,8 +68,12 @@ export default function MapComponent({
       showsIndoors={false}
       showsPointsOfInterest={false}
       showsTraffic={false}
+      pitchEnabled
+      rotateEnabled
+      scrollEnabled={!navigationMode}
+      zoomEnabled={!navigationMode}
       toolbarEnabled={false}
-      mapPadding={{ top: 158, right: 16, bottom: 152, left: 16 }}
+      mapPadding={{ top: navigationMode ? 92 : 158, right: 16, bottom: 152, left: 16 }}
     >
       {potholes.map((pothole) => (
         <Marker
@@ -76,12 +102,27 @@ export default function MapComponent({
 
       {driverLocation ? (
         <Marker coordinate={driverLocation} anchor={{ x: 0.5, y: 0.5 }}>
-          <DriverPulse>
-            <DriverCenter />
-          </DriverPulse>
+          <DriverMarker heading={driverHeading} navigationMode={navigationMode} />
         </Marker>
       ) : null}
     </MapView>
+  );
+}
+
+function DriverMarker({ heading, navigationMode }) {
+  if (!navigationMode) {
+    return (
+      <DriverPulse>
+        <DriverCenter />
+      </DriverPulse>
+    );
+  }
+
+  return (
+    <DriverArrowShell style={{ transform: [{ rotate: `${heading}deg` }] }}>
+      <DriverArrowTip />
+      <DriverArrowTail />
+    </DriverArrowShell>
   );
 }
 
@@ -178,6 +219,34 @@ const DriverCenter = styled.View`
   width: 14px;
   height: 14px;
   border-radius: 7px;
+  background-color: ${colors.accent};
+  border-width: 2px;
+  border-color: ${colors.white};
+`;
+
+const DriverArrowShell = styled.View`
+  width: 40px;
+  height: 48px;
+  align-items: center;
+  justify-content: center;
+`;
+
+const DriverArrowTip = styled.View`
+  width: 0;
+  height: 0;
+  border-left-width: 13px;
+  border-right-width: 13px;
+  border-bottom-width: 30px;
+  border-left-color: transparent;
+  border-right-color: transparent;
+  border-bottom-color: ${colors.accent};
+`;
+
+const DriverArrowTail = styled.View`
+  width: 13px;
+  height: 16px;
+  margin-top: -3px;
+  border-radius: 5px;
   background-color: ${colors.accent};
   border-width: 2px;
   border-color: ${colors.white};

@@ -1,4 +1,14 @@
 export const SANDBOX_DRIVER_STEP_MS = 3500;
+export const SANDBOX_3D_NAVIGATION_MOVE_METERS = 65;
+export const SANDBOX_3D_NAVIGATION_TURN_DEGREES = 18;
+export const SANDBOX_3D_NAVIGATION_HEADING = 45;
+
+export const SANDBOX_3D_NAVIGATION_START = {
+  id: "sj-3d-approach",
+  label: "Downtown San Jose approach",
+  latitude: 37.32935,
+  longitude: -121.89165
+};
 
 export const SANDBOX_DRIVER_ROUTE = [
   {

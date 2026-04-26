@@ -34,6 +34,8 @@ export default function MapComponent({
   focusLocation,
   draftLocation,
   driverLocation,
+  driverHeading,
+  navigationMode,
   onMarkerPress,
   viewMode,
   predictionRefreshToken
@@ -48,6 +50,8 @@ export default function MapComponent({
         selectedPothole={selectedPothole}
         draftLocation={draftLocation}
         driverLocation={driverLocation}
+        driverHeading={driverHeading}
+        navigationMode={navigationMode}
         focusLocation={focusLocation}
         onMarkerPress={onMarkerPress}
         viewMode={viewMode}
@@ -64,6 +68,8 @@ export default function MapComponent({
       focusLocation={focusLocation}
       draftLocation={draftLocation}
       driverLocation={driverLocation}
+      driverHeading={driverHeading}
+      navigationMode={navigationMode}
       onMarkerPress={onMarkerPress}
       viewMode={viewMode}
       predictionState={predictionState}
@@ -124,6 +130,7 @@ function LoadedGoogleMap({
   focusLocation,
   draftLocation,
   driverLocation,
+  driverHeading,
   onMarkerPress,
   viewMode,
   predictionState
@@ -290,6 +297,7 @@ function FallbackPreviewMap({
   selectedPothole,
   draftLocation,
   driverLocation,
+  driverHeading,
   focusLocation,
   onMarkerPress,
   viewMode,
@@ -449,6 +457,7 @@ function FallbackPreviewMap({
           <DriverMarker
             $top={projectCoordinate(driverLocation).top}
             $left={projectCoordinate(driverLocation).left}
+            style={{ transform: [{ rotate: `${driverHeading || 0}deg` }] }}
           >
             <DriverMarkerCenter />
           </DriverMarker>
