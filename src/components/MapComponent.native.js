@@ -1,11 +1,18 @@
-import React, { useEffect, useRef } from "react";
-import { StyleSheet, Text, View } from "react-native";
-import MapView, { Callout, Marker, PROVIDER_GOOGLE, UrlTile } from "react-native-maps";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { PanResponder, Pressable, StyleSheet, Text, View } from "react-native";
+import { Minus, Plus } from "lucide-react-native";
+import MapView, { Callout, Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import styled from "styled-components/native";
 
 import { MODERN_MAP_STYLE } from "../constants/mapStyle";
-import { SAN_JOSE_INITIAL_REGION } from "../constants/neighborhoods";
+import { BAY_AREA_LOCATIONS, SAN_JOSE_INITIAL_REGION } from "../constants/neighborhoods";
 import { colors } from "../theme";
+
+const TILE_SIZE = 256;
+const TILE_URL_TEMPLATE = "https://a.basemaps.cartocdn.com/light_all";
+const FALLBACK_INITIAL_ZOOM = 10;
+const FALLBACK_MIN_ZOOM = 9;
+const FALLBACK_MAX_ZOOM = 17;
 
 export default function MapComponent({
   potholes,
@@ -17,9 +24,48 @@ export default function MapComponent({
   navigationMode = false,
   onMarkerPress
 }) {
-  const mapRef = useRef(null);
   const nativeTileProvider = process.env.EXPO_PUBLIC_NATIVE_TILE_PROVIDER || "osm";
   const useOpenStreetMapTiles = nativeTileProvider !== "google";
+
+  if (useOpenStreetMapTiles) {
+    return (
+      <NativeTileMap
+        potholes={potholes}
+        selectedPothole={selectedPothole}
+        focusLocation={focusLocation}
+        draftLocation={draftLocation}
+        driverLocation={driverLocation}
+        driverHeading={driverHeading}
+        onMarkerPress={onMarkerPress}
+      />
+    );
+  }
+
+  return (
+    <GoogleNativeMap
+      potholes={potholes}
+      selectedPothole={selectedPothole}
+      focusLocation={focusLocation}
+      draftLocation={draftLocation}
+      driverLocation={driverLocation}
+      driverHeading={driverHeading}
+      navigationMode={navigationMode}
+      onMarkerPress={onMarkerPress}
+    />
+  );
+}
+
+function GoogleNativeMap({
+  potholes,
+  selectedPothole,
+  focusLocation,
+  draftLocation,
+  driverLocation,
+  driverHeading,
+  navigationMode,
+  onMarkerPress
+}) {
+  const mapRef = useRef(null);
 
   useEffect(() => {
     if (!mapRef.current) {
@@ -63,8 +109,7 @@ export default function MapComponent({
       provider={PROVIDER_GOOGLE}
       style={StyleSheet.absoluteFillObject}
       initialRegion={SAN_JOSE_INITIAL_REGION}
-      customMapStyle={useOpenStreetMapTiles ? undefined : MODERN_MAP_STYLE}
-      mapType={useOpenStreetMapTiles ? "none" : "standard"}
+      customMapStyle={MODERN_MAP_STYLE}
       showsUserLocation
       showsMyLocationButton={false}
       showsBuildings={false}
@@ -78,14 +123,6 @@ export default function MapComponent({
       toolbarEnabled={false}
       mapPadding={{ top: navigationMode ? 92 : 158, right: 16, bottom: 152, left: 16 }}
     >
-      {useOpenStreetMapTiles ? (
-        <UrlTile
-          urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-          maximumZ={19}
-          tileSize={256}
-        />
-      ) : null}
-
       {potholes.map((pothole) => (
         <Marker
           key={pothole.id}
@@ -120,6 +157,251 @@ export default function MapComponent({
   );
 }
 
+function NativeTileMap({
+  potholes,
+  selectedPothole,
+  focusLocation,
+  draftLocation,
+  driverLocation,
+  driverHeading,
+  onMarkerPress
+}) {
+  const [center, setCenter] = useState({
+    latitude: SAN_JOSE_INITIAL_REGION.latitude,
+    longitude: SAN_JOSE_INITIAL_REGION.longitude
+  });
+  const [zoom, setZoom] = useState(FALLBACK_INITIAL_ZOOM);
+  const [mapSize, setMapSize] = useState({ width: 0, height: 0 });
+  const centerRef = useRef(center);
+  const panStartCenterRef = useRef(center);
+
+  useEffect(() => {
+    if (focusLocation) {
+      setCenter({
+        latitude: focusLocation.latitude,
+        longitude: focusLocation.longitude
+      });
+      setZoom(zoomForRegion(focusLocation));
+    }
+  }, [focusLocation]);
+
+  useEffect(() => {
+    centerRef.current = center;
+  }, [center]);
+
+  const centerPixel = useMemo(() => latLngToPixel(center, zoom), [center, zoom]);
+
+  const tiles = useMemo(() => {
+    if (!mapSize.width || !mapSize.height) {
+      return [];
+    }
+
+    const tileCount = 2 ** zoom;
+    const startX = Math.floor((centerPixel.x - mapSize.width / 2) / TILE_SIZE) - 1;
+    const endX = Math.floor((centerPixel.x + mapSize.width / 2) / TILE_SIZE) + 1;
+    const startY = Math.floor((centerPixel.y - mapSize.height / 2) / TILE_SIZE) - 1;
+    const endY = Math.floor((centerPixel.y + mapSize.height / 2) / TILE_SIZE) + 1;
+    const visibleTiles = [];
+
+    for (let y = startY; y <= endY; y += 1) {
+      if (y < 0 || y >= tileCount) {
+        continue;
+      }
+
+      for (let x = startX; x <= endX; x += 1) {
+        const normalizedX = ((x % tileCount) + tileCount) % tileCount;
+        visibleTiles.push({
+          key: `${zoom}-${x}-${y}`,
+          url: `${TILE_URL_TEMPLATE}/${zoom}/${normalizedX}/${y}.png`,
+          left: x * TILE_SIZE - centerPixel.x + mapSize.width / 2,
+          top: y * TILE_SIZE - centerPixel.y + mapSize.height / 2
+        });
+      }
+    }
+
+    return visibleTiles;
+  }, [centerPixel, mapSize.height, mapSize.width, zoom]);
+
+  const projectCoordinate = (coordinate) => {
+    if (!mapSize.width || !mapSize.height) {
+      return { left: -100, top: -100 };
+    }
+
+    const point = latLngToPixel(coordinate, zoom);
+    return {
+      left: point.x - centerPixel.x + mapSize.width / 2,
+      top: point.y - centerPixel.y + mapSize.height / 2
+    };
+  };
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, gestureState) =>
+          Math.abs(gestureState.dx) > 4 || Math.abs(gestureState.dy) > 4,
+        onPanResponderGrant: () => {
+          panStartCenterRef.current = centerRef.current;
+        },
+        onPanResponderMove: (_, gestureState) => {
+          if (!mapSize.width || !mapSize.height) {
+            return;
+          }
+
+          const startPixel = latLngToPixel(panStartCenterRef.current, zoom);
+          setCenter(
+            pixelToLatLng(
+              {
+                x: startPixel.x - gestureState.dx,
+                y: startPixel.y - gestureState.dy
+              },
+              zoom
+            )
+          );
+        },
+        onPanResponderTerminationRequest: () => true
+      }),
+    [mapSize.height, mapSize.width, zoom]
+  );
+
+  const increaseZoom = () => {
+    setZoom((value) => clamp(value + 1, FALLBACK_MIN_ZOOM, FALLBACK_MAX_ZOOM));
+  };
+
+  const decreaseZoom = () => {
+    setZoom((value) => clamp(value - 1, FALLBACK_MIN_ZOOM, FALLBACK_MAX_ZOOM));
+  };
+
+  return (
+    <FallbackTileMap
+      onLayout={(event) => {
+        const { width, height } = event.nativeEvent.layout;
+        setMapSize((size) =>
+          size.width === width && size.height === height ? size : { width, height }
+        );
+      }}
+      {...panResponder.panHandlers}
+    >
+      <FallbackTileWorld>
+        {tiles.map((tile) => (
+          <FallbackMapTile
+            key={tile.key}
+            source={{ uri: tile.url }}
+            $left={tile.left}
+            $top={tile.top}
+            resizeMode="cover"
+          />
+        ))}
+
+        {BAY_AREA_LOCATIONS.slice(0, 14).map((location) => {
+          const position = projectCoordinate(location.coordinate);
+          return (
+            <NeighborhoodLabel
+              key={location.id}
+              $top={position.top}
+              $left={position.left}
+            >
+              {location.name}
+            </NeighborhoodLabel>
+          );
+        })}
+
+        {focusLocation ? (
+          <FocusRing
+            $top={projectCoordinate(focusLocation).top}
+            $left={projectCoordinate(focusLocation).left}
+          />
+        ) : null}
+
+        {potholes.map((pothole) => {
+          const position = projectCoordinate(pothole.coordinate);
+          return (
+            <FallbackMarkerButton
+              key={pothole.id}
+              $top={position.top}
+              $left={position.left}
+              onPress={() => onMarkerPress?.(pothole)}
+            >
+              <WarningTriangle selected={selectedPothole?.id === pothole.id} />
+            </FallbackMarkerButton>
+          );
+        })}
+
+        {draftLocation ? (
+          <FallbackPin
+            $top={projectCoordinate(draftLocation).top}
+            $left={projectCoordinate(draftLocation).left}
+          >
+            <DraftPulse>
+              <DraftCenter />
+            </DraftPulse>
+          </FallbackPin>
+        ) : null}
+
+        {driverLocation ? (
+          <FallbackPin
+            $top={projectCoordinate(driverLocation).top}
+            $left={projectCoordinate(driverLocation).left}
+          >
+            <DriverMarker heading={driverHeading} navigationMode={false} />
+          </FallbackPin>
+        ) : null}
+      </FallbackTileWorld>
+
+      <FallbackZoomControl>
+        <FallbackZoomButton onPress={increaseZoom}>
+          <Plus size={24} color={colors.ink} strokeWidth={2.8} />
+        </FallbackZoomButton>
+        <FallbackZoomDivider />
+        <FallbackZoomButton onPress={decreaseZoom}>
+          <Minus size={24} color={colors.ink} strokeWidth={2.8} />
+        </FallbackZoomButton>
+        <FallbackZoomText>z{zoom}</FallbackZoomText>
+      </FallbackZoomControl>
+
+      <FallbackAttribution>© OpenStreetMap © CARTO</FallbackAttribution>
+    </FallbackTileMap>
+  );
+}
+
+function latLngToPixel(coordinate, zoom) {
+  const latitude = clamp(coordinate.latitude, -85.05112878, 85.05112878);
+  const mapSize = TILE_SIZE * 2 ** zoom;
+  const sinLatitude = Math.sin((latitude * Math.PI) / 180);
+
+  return {
+    x: ((coordinate.longitude + 180) / 360) * mapSize,
+    y:
+      (0.5 - Math.log((1 + sinLatitude) / (1 - sinLatitude)) / (4 * Math.PI)) *
+      mapSize
+  };
+}
+
+function pixelToLatLng(point, zoom) {
+  const mapSize = TILE_SIZE * 2 ** zoom;
+  const longitude = (point.x / mapSize) * 360 - 180;
+  const mercatorY = Math.PI - (2 * Math.PI * point.y) / mapSize;
+  const latitude =
+    (180 / Math.PI) * Math.atan((Math.exp(mercatorY) - Math.exp(-mercatorY)) / 2);
+
+  return { latitude, longitude };
+}
+
+function zoomForRegion(region) {
+  if (region.latitudeDelta && region.latitudeDelta < 0.02) {
+    return 15;
+  }
+
+  if (region.latitudeDelta && region.latitudeDelta < 0.05) {
+    return 14;
+  }
+
+  return FALLBACK_INITIAL_ZOOM;
+}
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
 function DriverMarker({ heading, navigationMode }) {
   if (!navigationMode) {
     return (
@@ -147,6 +429,119 @@ function WarningTriangle({ selected }) {
     </TriangleBox>
   );
 }
+
+const FallbackTileMap = styled.View`
+  flex: 1;
+  overflow: hidden;
+  background-color: #e5edf4;
+`;
+
+const FallbackTileWorld = styled.View`
+  position: absolute;
+  inset: 0;
+`;
+
+const FallbackMapTile = styled.Image`
+  position: absolute;
+  left: ${({ $left }) => $left}px;
+  top: ${({ $top }) => $top}px;
+  width: ${TILE_SIZE}px;
+  height: ${TILE_SIZE}px;
+`;
+
+const NeighborhoodLabel = styled.Text`
+  position: absolute;
+  top: ${({ $top }) => $top}px;
+  left: ${({ $left }) => $left}px;
+  margin-left: 8px;
+  color: rgba(15, 23, 42, 0.58);
+  font-size: 12px;
+  font-weight: 800;
+  text-shadow-color: rgba(255, 255, 255, 0.9);
+  text-shadow-offset: 0px 1px;
+  text-shadow-radius: 2px;
+`;
+
+const FocusRing = styled.View`
+  position: absolute;
+  top: ${({ $top }) => $top}px;
+  left: ${({ $left }) => $left}px;
+  width: 70px;
+  height: 70px;
+  margin-left: -35px;
+  margin-top: -35px;
+  border-radius: 35px;
+  border-width: 2px;
+  border-color: rgba(37, 99, 235, 0.55);
+  background-color: rgba(37, 99, 235, 0.1);
+`;
+
+const FallbackMarkerButton = styled(Pressable)`
+  position: absolute;
+  top: ${({ $top }) => $top}px;
+  left: ${({ $left }) => $left}px;
+  width: 46px;
+  height: 44px;
+  margin-left: -23px;
+  margin-top: -36px;
+  align-items: center;
+  justify-content: center;
+  z-index: 6;
+`;
+
+const FallbackPin = styled.View`
+  position: absolute;
+  top: ${({ $top }) => $top}px;
+  left: ${({ $left }) => $left}px;
+  margin-left: -17px;
+  margin-top: -17px;
+  z-index: 7;
+`;
+
+const FallbackZoomControl = styled.View`
+  position: absolute;
+  right: 18px;
+  top: 430px;
+  width: 54px;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: rgba(255, 255, 255, 0.94);
+  border-width: 1px;
+  border-color: rgba(15, 23, 42, 0.12);
+  elevation: 3;
+`;
+
+const FallbackZoomButton = styled(Pressable)`
+  height: 48px;
+  align-items: center;
+  justify-content: center;
+`;
+
+const FallbackZoomDivider = styled.View`
+  height: 1px;
+  background-color: rgba(15, 23, 42, 0.12);
+`;
+
+const FallbackZoomText = styled.Text`
+  padding: 7px 0;
+  color: ${colors.textMuted};
+  font-size: 11px;
+  font-weight: 900;
+  text-align: center;
+`;
+
+const FallbackAttribution = styled.Text`
+  position: absolute;
+  left: 14px;
+  bottom: 98px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  overflow: hidden;
+  color: ${colors.textMuted};
+  font-size: 10px;
+  font-weight: 700;
+  background-color: rgba(255, 255, 255, 0.82);
+`;
 
 const TriangleBox = styled(View)`
   width: 34px;

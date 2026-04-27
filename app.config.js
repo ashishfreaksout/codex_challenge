@@ -32,7 +32,7 @@ module.exports = {
       package: sandbox3DNavigationEnabled
         ? "com.example.bayareapotholes.sandbox3d"
         : "com.example.bayareapotholes",
-      permissions: ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"],
+      permissions: ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION", "INTERNET"],
       config: {
         googleMaps: {
           apiKey: googleMapsApiKey
