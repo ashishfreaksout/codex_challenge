@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="430" viewBox="0 0 1100 430" role="img" aria-labelledby="title desc">
+  <title id="title">Bay Area Pothole AI Tracker architecture</title>
+  <desc id="desc">Diagram showing data sources flowing into machine learning training, prediction API, and the mobile app.</desc>
+  <defs>
+    <style>
+      .bg { fill: #f8fafc; }
+      .card { fill: #ffffff; stroke: #d8dee9; stroke-width: 2; rx: 18; }
+      .accent { fill: #2563eb; }
+      .green { fill: #16a34a; }
+      .orange { fill: #f97316; }
+      .red { fill: #ef4444; }
+      .text { font: 600 22px Arial, sans-serif; fill: #0f172a; }
+      .small { font: 16px Arial, sans-serif; fill: #475569; }
+      .arrow { stroke: #64748b; stroke-width: 4; fill: none; marker-end: url(#arrowhead); }
+    </style>
+    <marker id="arrowhead" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#64748b"/>
+    </marker>
+  </defs>
+  <rect class="bg" x="0" y="0" width="1100" height="430"/>
+
+  <rect class="card" x="35" y="55" width="245" height="130"/>
+  <circle class="orange" cx="72" cy="92" r="15"/>
+  <text class="text" x="100" y="99">Live 311 Data</text>
+  <text class="small" x="60" y="135">San Jose/API-shaped reports</text>
+  <text class="small" x="60" y="160">Reported and fixed potholes</text>
+
+  <rect class="card" x="35" y="240" width="245" height="130"/>
+  <circle class="green" cx="72" cy="277" r="15"/>
+  <text class="text" x="100" y="284">Historical + GIS</text>
+  <text class="small" x="60" y="320">Rainfall, drainage, pavement</text>
+  <text class="small" x="60" y="345">Traffic and road features</text>
+
+  <rect class="card" x="385" y="145" width="270" height="150"/>
+  <rect class="accent" x="415" y="175" width="54" height="54" rx="12"/>
+  <text x="432" y="211" font-family="Arial" font-size="34" fill="#fff">AI</text>
+  <text class="text" x="490" y="196">ML Risk Engine</text>
+  <text class="small" x="415" y="240">Gradient boosting + heuristic</text>
+  <text class="small" x="415" y="265">Outputs GeoJSON risk grid</text>
+
+  <rect class="card" x="760" y="60" width="280" height="130"/>
+  <circle class="red" cx="797" cy="97" r="15"/>
+  <text class="text" x="825" y="104">Prediction API</text>
+  <text class="small" x="785" y="140">Express/FastAPI endpoints</text>
+  <text class="small" x="785" y="165">Spatial filtering and updates</text>
+
+  <rect class="card" x="760" y="245" width="280" height="130"/>
+  <circle class="accent" cx="797" cy="282" r="15"/>
+  <text class="text" x="825" y="289">Expo App</text>
+  <text class="small" x="785" y="325">Live, Predicted, 3D Nav</text>
+  <text class="small" x="785" y="350">Driver risk warning</text>
+
+  <path class="arrow" d="M280 120 C330 120, 340 170, 385 190"/>
+  <path class="arrow" d="M280 305 C330 305, 340 255, 385 250"/>
+  <path class="arrow" d="M655 205 C705 170, 710 130, 760 125"/>
+  <path class="arrow" d="M900 190 L900 245"/>
+  <path class="arrow" d="M280 120 C520 35, 660 40, 760 95"/>
+  <path class="arrow" d="M655 250 C705 285, 710 305, 760 310"/>
+</svg>

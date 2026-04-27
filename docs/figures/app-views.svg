@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="360" viewBox="0 0 1100 360" role="img" aria-labelledby="title desc">
+  <title id="title">Application view modes</title>
+  <desc id="desc">Three panels showing live reports, predicted hotspots, and 3D navigation mode.</desc>
+  <defs>
+    <style>
+      .bg { fill: #f8fafc; }
+      .phone { fill: #ffffff; stroke: #cbd5e1; stroke-width: 2; rx: 24; }
+      .map { fill: #e2e8f0; }
+      .road { stroke: #94a3b8; stroke-width: 8; stroke-linecap: round; }
+      .street { stroke: #cbd5e1; stroke-width: 4; stroke-linecap: round; }
+      .title { font: 700 24px Arial, sans-serif; fill: #0f172a; }
+      .label { font: 16px Arial, sans-serif; fill: #475569; }
+      .tab { fill: #2563eb; rx: 10; }
+      .tabtext { font: 700 15px Arial, sans-serif; fill: #ffffff; }
+      .warn { fill: #f97316; stroke: #ffffff; stroke-width: 2; }
+      .hotlow { fill: #84cc16; opacity: .45; stroke: #65a30d; }
+      .hotmid { fill: #facc15; opacity: .45; stroke: #ca8a04; }
+      .hothigh { fill: #ef4444; opacity: .45; stroke: #dc2626; }
+      .navroad { fill: #334155; }
+      .lane { stroke: #cbd5e1; stroke-width: 5; }
+    </style>
+  </defs>
+  <rect class="bg" width="1100" height="360"/>
+
+  <g transform="translate(45 35)">
+    <text class="title" x="0" y="0">Live Reports</text>
+    <rect class="phone" x="0" y="25" width="300" height="285"/>
+    <rect class="tab" x="22" y="48" width="145" height="35"/>
+    <text class="tabtext" x="53" y="72">Live</text>
+    <rect class="map" x="22" y="100" width="256" height="185" rx="14"/>
+    <path class="road" d="M45 245 L250 125"/>
+    <path class="street" d="M60 130 L260 215"/>
+    <path class="street" d="M120 105 L95 275"/>
+    <path class="warn" d="M94 155 L110 185 L78 185 Z"/>
+    <text x="93" y="179" font-family="Arial" font-size="20" font-weight="700" fill="#fff">!</text>
+    <path class="warn" d="M205 195 L221 225 L189 225 Z"/>
+    <text x="204" y="219" font-family="Arial" font-size="20" font-weight="700" fill="#fff">!</text>
+    <text class="label" x="22" y="330">Confirmed reported potholes</text>
+  </g>
+
+  <g transform="translate(400 35)">
+    <text class="title" x="0" y="0">AI Predicted</text>
+    <rect class="phone" x="0" y="25" width="300" height="285"/>
+    <rect class="tab" x="122" y="48" width="145" height="35"/>
+    <text class="tabtext" x="146" y="72">Predicted</text>
+    <rect class="map" x="22" y="100" width="256" height="185" rx="14"/>
+    <path class="road" d="M45 245 L250 125"/>
+    <path class="street" d="M60 130 L260 215"/>
+    <circle class="hotlow" cx="82" cy="220" r="38"/>
+    <circle class="hotmid" cx="160" cy="170" r="50"/>
+    <circle class="hothigh" cx="215" cy="135" r="34"/>
+    <rect class="hotmid" x="95" y="205" width="120" height="40" rx="8"/>
+    <text class="label" x="22" y="330">Probability hotspots, not reports</text>
+  </g>
+
+  <g transform="translate(755 35)">
+    <text class="title" x="0" y="0">3D Nav</text>
+    <rect class="phone" x="0" y="25" width="300" height="285"/>
+    <rect class="tab" x="132" y="48" width="145" height="35"/>
+    <text class="tabtext" x="163" y="72">3D Nav</text>
+    <rect x="22" y="100" width="256" height="185" rx="14" fill="#dff6ff"/>
+    <path class="navroad" d="M45 285 L102 145 C118 128 184 128 200 145 L257 285 Z"/>
+    <path class="lane" d="M128 285 L138 145"/>
+    <path class="lane" d="M178 285 L162 145"/>
+    <circle cx="150" cy="205" r="31" fill="#64748b" opacity=".55"/>
+    <path d="M150 178 L170 226 L150 214 L130 226 Z" fill="#ffffff" stroke="#2563eb" stroke-width="4"/>
+    <rect x="38" y="250" width="145" height="30" rx="8" fill="#0f172a" opacity=".85"/>
+    <text x="53" y="271" font-family="Arial" font-size="14" font-weight="700" fill="#fff">High-risk area</text>
+    <text class="label" x="22" y="330">Driver heading and warning</text>
+  </g>
+</svg>

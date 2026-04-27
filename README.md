@@ -2,6 +2,10 @@
 
 Expo React Native app for tracking potholes across the Bay Area with Google Maps or an OpenStreetMap web preview, mock 311 data, local report state, search, status filtering, and AI probability hotspots.
 
+## Project Case Study
+
+For a visual project overview, development story, architecture diagram, and human/Codex collaboration summary, see [PROJECT_CASE_STUDY.md](PROJECT_CASE_STUDY.md).
+
 ## Run
 
 ```bash

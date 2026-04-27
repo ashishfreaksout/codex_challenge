@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="420" viewBox="0 0 1100 420" role="img" aria-labelledby="title desc">
+  <title id="title">Predictor groups used by the pothole model</title>
+  <desc id="desc">Horizontal bars showing the major feature groups used in the risk model.</desc>
+  <defs>
+    <style>
+      .bg { fill: #f8fafc; }
+      .axis { stroke: #cbd5e1; stroke-width: 2; }
+      .label { font: 700 19px Arial, sans-serif; fill: #0f172a; }
+      .small { font: 15px Arial, sans-serif; fill: #64748b; }
+      .bar1 { fill: #2563eb; }
+      .bar2 { fill: #0ea5e9; }
+      .bar3 { fill: #16a34a; }
+      .bar4 { fill: #f97316; }
+      .bar5 { fill: #ef4444; }
+      .bar6 { fill: #8b5cf6; }
+      .bar7 { fill: #64748b; }
+      .card { fill: #ffffff; stroke: #d8dee9; stroke-width: 2; rx: 18; }
+    </style>
+  </defs>
+  <rect class="bg" width="1100" height="420"/>
+  <rect class="card" x="35" y="30" width="1030" height="355"/>
+  <text x="65" y="75" font-family="Arial" font-size="28" font-weight="700" fill="#0f172a">Risk Feature Groups</text>
+  <text class="small" x="65" y="102">The model combines civic history with physical road conditions instead of relying only on live 311 reports.</text>
+
+  <line class="axis" x1="320" y1="135" x2="975" y2="135"/>
+  <line class="axis" x1="320" y1="335" x2="975" y2="335"/>
+
+  <text class="label" x="65" y="150">Report history</text>
+  <rect class="bar1" x="320" y="128" width="500" height="26" rx="13"/>
+  <text class="small" x="835" y="149">24-month frequency</text>
+
+  <text class="label" x="65" y="185">Rainfall</text>
+  <rect class="bar2" x="320" y="163" width="445" height="26" rx="13"/>
+  <text class="small" x="780" y="184">30/90-day rain, heavy days</text>
+
+  <text class="label" x="65" y="220">Water retention</text>
+  <rect class="bar3" x="320" y="198" width="560" height="26" rx="13"/>
+  <text class="small" x="895" y="219">slope, wetness, drains</text>
+
+  <text class="label" x="65" y="255">Pavement decay</text>
+  <rect class="bar4" x="320" y="233" width="480" height="26" rx="13"/>
+  <text class="small" x="815" y="254">PCI, resurfacing age</text>
+
+  <text class="label" x="65" y="290">Traffic load</text>
+  <rect class="bar5" x="320" y="268" width="390" height="26" rx="13"/>
+  <text class="small" x="725" y="289">AADT, trucks, road class</text>
+
+  <text class="label" x="65" y="325">Repair decay</text>
+  <rect class="bar6" x="320" y="303" width="260" height="26" rx="13"/>
+  <text class="small" x="595" y="324">time since fixed</text>
+
+  <text class="label" x="65" y="360">Seasonality</text>
+  <rect class="bar7" x="320" y="338" width="210" height="26" rx="13"/>
+  <text class="small" x="545" y="359">Jan-Mar rainy season</text>
+</svg>

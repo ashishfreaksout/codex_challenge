@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="430" viewBox="0 0 1100 430" role="img" aria-labelledby="title desc">
+  <title id="title">Risk model flow</title>
+  <desc id="desc">Flow diagram from records and environmental samples to feature engineering, gradient boosting, heuristic score, and GeoJSON output.</desc>
+  <defs>
+    <style>
+      .bg { fill: #f8fafc; }
+      .box { fill: #ffffff; stroke: #cbd5e1; stroke-width: 2; rx: 16; }
+      .blue { fill: #dbeafe; stroke: #2563eb; }
+      .green { fill: #dcfce7; stroke: #16a34a; }
+      .yellow { fill: #fef9c3; stroke: #ca8a04; }
+      .red { fill: #fee2e2; stroke: #ef4444; }
+      .title { font: 700 22px Arial, sans-serif; fill: #0f172a; }
+      .small { font: 15px Arial, sans-serif; fill: #475569; }
+      .arrow { stroke: #64748b; stroke-width: 4; fill: none; marker-end: url(#arrowhead); }
+    </style>
+    <marker id="arrowhead" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#64748b"/>
+    </marker>
+  </defs>
+  <rect class="bg" width="1100" height="430"/>
+
+  <rect class="box blue" x="40" y="70" width="230" height="115"/>
+  <text class="title" x="65" y="110">Pothole Records</text>
+  <text class="small" x="65" y="140">311 reports, dates, status</text>
+  <text class="small" x="65" y="162">latitude and longitude</text>
+
+  <rect class="box green" x="40" y="245" width="230" height="115"/>
+  <text class="title" x="65" y="285">External Features</text>
+  <text class="small" x="65" y="315">rain, drainage, pavement</text>
+  <text class="small" x="65" y="337">traffic and road class</text>
+
+  <rect class="box" x="360" y="145" width="250" height="140"/>
+  <text class="title" x="390" y="187">Feature Engineering</text>
+  <text class="small" x="390" y="218">grid cells + time windows</text>
+  <text class="small" x="390" y="242">road/land mask</text>
+  <text class="small" x="390" y="266">water exclusion</text>
+
+  <rect class="box yellow" x="710" y="60" width="280" height="115"/>
+  <text class="title" x="740" y="100">Gradient Boosting</text>
+  <text class="small" x="740" y="130">learns nonlinear patterns</text>
+  <text class="small" x="740" y="152">outputs probability</text>
+
+  <rect class="box red" x="710" y="245" width="280" height="115"/>
+  <text class="title" x="740" y="285">Domain Heuristic</text>
+  <text class="small" x="740" y="315">rain + water + pavement</text>
+  <text class="small" x="740" y="337">keeps model explainable</text>
+
+  <rect class="box" x="420" y="330" width="300" height="70"/>
+  <text class="title" x="455" y="373">GeoJSON Risk Grid</text>
+
+  <path class="arrow" d="M270 130 C310 130, 320 170, 360 190"/>
+  <path class="arrow" d="M270 305 C310 305, 320 260, 360 240"/>
+  <path class="arrow" d="M610 190 C660 150, 665 115, 710 115"/>
+  <path class="arrow" d="M610 240 C660 275, 665 300, 710 300"/>
+  <path class="arrow" d="M850 175 C850 220, 760 325, 720 360"/>
+  <path class="arrow" d="M850 245 C850 215, 765 330, 720 360"/>
+
+  <text x="765" y="215" font-family="Arial" font-size="18" font-weight="700" fill="#0f172a">0.72 ML + 0.28 heuristic</text>
+</svg>

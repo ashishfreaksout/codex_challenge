@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="360" viewBox="0 0 1100 360" role="img" aria-labelledby="title desc">
+  <title id="title">Development timeline</title>
+  <desc id="desc">Timeline showing project iterations from San Jose map to Bay Area model, prediction service, mobile fixes, and sandbox APK.</desc>
+  <defs>
+    <style>
+      .bg { fill: #f8fafc; }
+      .line { stroke: #94a3b8; stroke-width: 6; stroke-linecap: round; }
+      .dot { fill: #2563eb; stroke: #ffffff; stroke-width: 5; }
+      .dot2 { fill: #16a34a; stroke: #ffffff; stroke-width: 5; }
+      .dot3 { fill: #f97316; stroke: #ffffff; stroke-width: 5; }
+      .dot4 { fill: #ef4444; stroke: #ffffff; stroke-width: 5; }
+      .dot5 { fill: #8b5cf6; stroke: #ffffff; stroke-width: 5; }
+      .dot6 { fill: #0f172a; stroke: #ffffff; stroke-width: 5; }
+      .title { font: 700 20px Arial, sans-serif; fill: #0f172a; }
+      .small { font: 14px Arial, sans-serif; fill: #475569; }
+      .card { fill: #ffffff; stroke: #d8dee9; stroke-width: 2; rx: 14; }
+    </style>
+  </defs>
+  <rect class="bg" width="1100" height="360"/>
+  <line class="line" x1="95" y1="180" x2="1005" y2="180"/>
+
+  <g transform="translate(55 55)">
+    <rect class="card" x="0" y="0" width="150" height="90"/>
+    <text class="title" x="18" y="30">1. Map</text>
+    <text class="small" x="18" y="55">San Jose live</text>
+    <text class="small" x="18" y="75">pothole markers</text>
+  </g>
+  <circle class="dot" cx="130" cy="180" r="18"/>
+
+  <g transform="translate(215 215)">
+    <rect class="card" x="0" y="0" width="155" height="95"/>
+    <text class="title" x="18" y="30">2. Bay Area</text>
+    <text class="small" x="18" y="55">expanded sample</text>
+    <text class="small" x="18" y="75">data and search</text>
+  </g>
+  <circle class="dot2" cx="292" cy="180" r="18"/>
+
+  <g transform="translate(375 55)">
+    <rect class="card" x="0" y="0" width="160" height="95"/>
+    <text class="title" x="18" y="30">3. ML Model</text>
+    <text class="small" x="18" y="55">rain, drainage,</text>
+    <text class="small" x="18" y="75">pavement risk</text>
+  </g>
+  <circle class="dot3" cx="455" cy="180" r="18"/>
+
+  <g transform="translate(545 215)">
+    <rect class="card" x="0" y="0" width="160" height="95"/>
+    <text class="title" x="18" y="30">4. API</text>
+    <text class="small" x="18" y="55">GeoJSON service</text>
+    <text class="small" x="18" y="75">and rbush index</text>
+  </g>
+  <circle class="dot4" cx="625" cy="180" r="18"/>
+
+  <g transform="translate(715 55)">
+    <rect class="card" x="0" y="0" width="160" height="95"/>
+    <text class="title" x="18" y="30">5. Mobile</text>
+    <text class="small" x="18" y="55">APK map fixes</text>
+    <text class="small" x="18" y="75">and performance</text>
+  </g>
+  <circle class="dot5" cx="795" cy="180" r="18"/>
+
+  <g transform="translate(880 215)">
+    <rect class="card" x="0" y="0" width="165" height="95"/>
+    <text class="title" x="18" y="30">6. Sandbox</text>
+    <text class="small" x="18" y="55">3D nav APK</text>
+    <text class="small" x="18" y="75">for test driving</text>
+  </g>
+  <circle class="dot6" cx="962" cy="180" r="18"/>
+</svg>
