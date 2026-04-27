@@ -49,6 +49,13 @@ module.exports = {
     },
     plugins: [
       [
+        "react-native-maps",
+        {
+          androidGoogleMapsApiKey: googleMapsApiKey,
+          iosGoogleMapsApiKey: googleMapsApiKey
+        }
+      ],
+      [
         "expo-location",
         {
           locationWhenInUsePermission:
