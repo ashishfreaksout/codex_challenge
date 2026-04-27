@@ -1,5 +1,5 @@
-import React from "react";
-import { View } from "react-native";
+import React, { useMemo, useRef, useState } from "react";
+import { PanResponder, View } from "react-native";
 import { Navigation } from "lucide-react-native";
 import styled from "styled-components/native";
 
@@ -20,14 +20,65 @@ export default function SandboxNavigationScene({
 }) {
   const origin = driverLocation || SANDBOX_3D_NAVIGATION_START;
   const hotspots = HOTSPOTS.map((hotspot) => projectHotspot(origin, hotspot));
+  const [sceneZoom, setSceneZoom] = useState(1);
+  const sceneZoomRef = useRef(sceneZoom);
+  const pinchStartDistanceRef = useRef(null);
+  const pinchStartZoomRef = useRef(sceneZoom);
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: (event) => event.nativeEvent.touches.length > 1,
+        onMoveShouldSetPanResponder: (event) => event.nativeEvent.touches.length > 1,
+        onPanResponderGrant: (event) => {
+          const distance = touchDistance(event.nativeEvent.touches);
+          pinchStartDistanceRef.current = distance;
+          pinchStartZoomRef.current = sceneZoomRef.current;
+        },
+        onPanResponderMove: (event) => {
+          const distance = touchDistance(event.nativeEvent.touches);
+          if (!distance) {
+            return;
+          }
+
+          if (!pinchStartDistanceRef.current) {
+            pinchStartDistanceRef.current = distance;
+            pinchStartZoomRef.current = sceneZoomRef.current;
+          }
+
+          const nextZoom = clamp(
+            pinchStartZoomRef.current * (distance / pinchStartDistanceRef.current),
+            0.9,
+            1.3
+          );
+          sceneZoomRef.current = nextZoom;
+          setSceneZoom(nextZoom);
+        },
+        onPanResponderRelease: () => {
+          pinchStartDistanceRef.current = null;
+        },
+        onPanResponderTerminate: () => {
+          pinchStartDistanceRef.current = null;
+        },
+        onPanResponderTerminationRequest: () => true
+      }),
+    []
+  );
 
   return (
-    <Scene>
+    <Scene {...panResponder.panHandlers}>
       <SkyBand />
       <Horizon>
         <HorizonTitle>{title}</HorizonTitle>
       </Horizon>
-      <RoadPlane style={{ transform: [{ perspective: 820 }, { rotateX: "62deg" }] }}>
+      <RoadPlane
+        style={{
+          transform: [
+            { perspective: 760 },
+            { rotateX: "48deg" },
+            { scale: sceneZoom }
+          ]
+        }}
+      >
         <RoadShoulder />
         <LaneLine $left="36%" />
         <LaneLine $left="50%" />
@@ -45,11 +96,12 @@ export default function SandboxNavigationScene({
           </Hotspot>
         ))}
       </RoadPlane>
-      <DriverCompass>
+      <DriverDeck>
+        <DriverShadow />
         <DriverArrow style={{ transform: [{ rotate: `${driverHeading || 0}deg` }] }}>
-          <Navigation size={34} color={colors.white} fill={colors.accent} />
+          <Navigation size={42} color={colors.white} fill={colors.accent} />
         </DriverArrow>
-      </DriverCompass>
+      </DriverDeck>
       <SceneFooter>
         <SceneFooterText>{footerText}</SceneFooterText>
       </SceneFooter>
@@ -76,6 +128,17 @@ function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
+function touchDistance(touches) {
+  if (!touches || touches.length < 2) {
+    return null;
+  }
+
+  const [first, second] = touches;
+  const deltaX = first.pageX - second.pageX;
+  const deltaY = first.pageY - second.pageY;
+  return Math.hypot(deltaX, deltaY);
+}
+
 const Scene = styled.View`
   flex: 1;
   overflow: hidden;
@@ -92,11 +155,11 @@ const Horizon = styled.View`
   position: absolute;
   left: 0;
   right: 0;
-  top: 18%;
-  height: 120px;
+  top: 8%;
+  height: 88px;
   align-items: center;
   justify-content: flex-start;
-  background-color: rgba(148, 163, 184, 0.22);
+  background-color: rgba(148, 163, 184, 0.2);
   border-top-width: 1px;
   border-top-color: rgba(15, 23, 42, 0.1);
 `;
@@ -110,21 +173,21 @@ const HorizonTitle = styled.Text`
 
 const RoadPlane = styled.View`
   position: absolute;
-  left: -18%;
-  right: -18%;
-  bottom: -18%;
-  height: 76%;
+  left: -36%;
+  right: -36%;
+  bottom: -12%;
+  height: 112%;
   background-color: #334155;
-  border-top-left-radius: 70px;
-  border-top-right-radius: 70px;
+  border-top-left-radius: 92px;
+  border-top-right-radius: 92px;
   overflow: hidden;
 `;
 
 const RoadShoulder = styled.View`
   position: absolute;
   inset: 0;
-  border-left-width: 44px;
-  border-right-width: 44px;
+  border-left-width: 62px;
+  border-right-width: 62px;
   border-left-color: rgba(241, 245, 249, 0.24);
   border-right-color: rgba(241, 245, 249, 0.24);
 `;
@@ -158,24 +221,29 @@ const HotspotText = styled.Text`
   font-weight: 900;
 `;
 
-const DriverCompass = styled.View`
+const DriverDeck = styled.View`
   position: absolute;
   left: 50%;
-  bottom: 28%;
-  width: 70px;
-  height: 70px;
-  margin-left: -35px;
-  border-radius: 35px;
+  bottom: 34%;
+  width: 84px;
+  height: 84px;
+  margin-left: -42px;
   align-items: center;
   justify-content: center;
-  background-color: rgba(15, 23, 42, 0.36);
-  border-width: 1px;
-  border-color: rgba(255, 255, 255, 0.28);
+`;
+
+const DriverShadow = styled.View`
+  position: absolute;
+  width: 58px;
+  height: 22px;
+  border-radius: 29px;
+  background-color: rgba(15, 23, 42, 0.24);
+  bottom: 12px;
 `;
 
 const DriverArrow = styled(View)`
-  width: 46px;
-  height: 46px;
+  width: 54px;
+  height: 54px;
   align-items: center;
   justify-content: center;
 `;

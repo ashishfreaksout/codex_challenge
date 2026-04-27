@@ -198,6 +198,9 @@ function NativeTileMap({
   const [isPanning, setIsPanning] = useState(false);
   const centerRef = useRef(center);
   const panStartCenterRef = useRef(center);
+  const zoomRef = useRef(zoom);
+  const pinchStartDistanceRef = useRef(null);
+  const pinchStartZoomRef = useRef(zoom);
   const isPanningRef = useRef(false);
   const panEndTimerRef = useRef(null);
 
@@ -214,6 +217,10 @@ function NativeTileMap({
   useEffect(() => {
     centerRef.current = center;
   }, [center]);
+
+  useEffect(() => {
+    zoomRef.current = zoom;
+  }, [zoom]);
 
   useEffect(
     () => () => {
@@ -337,41 +344,83 @@ function NativeTileMap({
   const panResponder = useMemo(
     () =>
       PanResponder.create({
-        onMoveShouldSetPanResponder: (_, gestureState) =>
-          Math.abs(gestureState.dx) > 4 || Math.abs(gestureState.dy) > 4,
-        onPanResponderGrant: () => {
+        onStartShouldSetPanResponder: (event) => event.nativeEvent.touches.length > 1,
+        onMoveShouldSetPanResponder: (event, gestureState) =>
+          event.nativeEvent.touches.length > 1 ||
+          Math.abs(gestureState.dx) > 4 ||
+          Math.abs(gestureState.dy) > 4,
+        onPanResponderGrant: (event) => {
           beginPan();
           panStartCenterRef.current = centerRef.current;
+          const distance = touchDistance(event.nativeEvent.touches);
+          pinchStartDistanceRef.current = distance;
+          pinchStartZoomRef.current = zoomRef.current;
         },
-        onPanResponderMove: (_, gestureState) => {
+        onPanResponderMove: (event, gestureState) => {
           if (!mapSize.width || !mapSize.height) {
             return;
           }
 
-          const startPixel = latLngToPixel(panStartCenterRef.current, zoom);
+          const distance = touchDistance(event.nativeEvent.touches);
+          if (distance) {
+            if (!pinchStartDistanceRef.current) {
+              pinchStartDistanceRef.current = distance;
+              pinchStartZoomRef.current = zoomRef.current;
+            }
+
+            const scale = distance / pinchStartDistanceRef.current;
+            const nextZoom = clamp(
+              Math.round(pinchStartZoomRef.current + Math.log2(scale)),
+              FALLBACK_MIN_ZOOM,
+              FALLBACK_MAX_ZOOM
+            );
+
+            if (nextZoom !== zoomRef.current) {
+              zoomRef.current = nextZoom;
+              setZoom(nextZoom);
+            }
+            return;
+          }
+
+          const currentZoom = zoomRef.current;
+          const startPixel = latLngToPixel(panStartCenterRef.current, currentZoom);
           setCenter(
             pixelToLatLng(
               {
                 x: startPixel.x - gestureState.dx,
                 y: startPixel.y - gestureState.dy
               },
-              zoom
+              currentZoom
             )
           );
         },
-        onPanResponderRelease: finishPan,
-        onPanResponderTerminate: finishPan,
+        onPanResponderRelease: () => {
+          pinchStartDistanceRef.current = null;
+          finishPan();
+        },
+        onPanResponderTerminate: () => {
+          pinchStartDistanceRef.current = null;
+          finishPan();
+        },
         onPanResponderTerminationRequest: () => true
       }),
-    [mapSize.height, mapSize.width, zoom]
+    [mapSize.height, mapSize.width]
   );
 
   const increaseZoom = () => {
-    setZoom((value) => clamp(value + 1, FALLBACK_MIN_ZOOM, FALLBACK_MAX_ZOOM));
+    setZoom((value) => {
+      const nextZoom = clamp(value + 1, FALLBACK_MIN_ZOOM, FALLBACK_MAX_ZOOM);
+      zoomRef.current = nextZoom;
+      return nextZoom;
+    });
   };
 
   const decreaseZoom = () => {
-    setZoom((value) => clamp(value - 1, FALLBACK_MIN_ZOOM, FALLBACK_MAX_ZOOM));
+    setZoom((value) => {
+      const nextZoom = clamp(value - 1, FALLBACK_MIN_ZOOM, FALLBACK_MAX_ZOOM);
+      zoomRef.current = nextZoom;
+      return nextZoom;
+    });
   };
 
   return (
@@ -712,6 +761,17 @@ function zoomForRegion(region) {
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
+}
+
+function touchDistance(touches) {
+  if (!touches || touches.length < 2) {
+    return null;
+  }
+
+  const [first, second] = touches;
+  const deltaX = first.pageX - second.pageX;
+  const deltaY = first.pageY - second.pageY;
+  return Math.hypot(deltaX, deltaY);
 }
 
 function DriverMarker({ heading, navigationMode }) {
