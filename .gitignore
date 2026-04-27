@@ -1,6 +1,8 @@
 node_modules
 .expo
 .venv
+__pycache__
+*.py[cod]
 dist
 predictive-service/data/risk_grid.geojson
 .env

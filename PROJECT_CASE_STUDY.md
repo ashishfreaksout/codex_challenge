@@ -93,6 +93,22 @@ Gradient boosting was selected because pothole risk is not likely to be a simple
 
 The project also includes a weighted heuristic fallback. This makes the system more explainable and keeps the prediction layer usable even when there is not enough data for a reliable trained model.
 
+## Model Evaluation
+
+A GitHub-rendered evaluation notebook is included at [docs/model_evaluation.ipynb](docs/model_evaluation.ipynb). It uses the bundled sample data to compare baseline models and generate visual outputs.
+
+Current sample evaluation artifacts:
+
+- [Model metrics CSV](docs/model_metrics.csv)
+- [Model comparison chart](docs/figures/model-comparison.svg)
+- [ROC curve](docs/figures/roc-curve.svg)
+- [Confusion matrix](docs/figures/confusion-matrix.svg)
+- [Feature importance chart](docs/figures/feature-importance.svg)
+- [Risk grid distribution](docs/figures/risk-distribution.svg)
+- [Live vs predicted comparison](docs/figures/live-vs-predicted.svg)
+
+These results are useful for explaining the pipeline, but they should be treated as sample-data validation. A final academic or production study should rerun the notebook with larger official historical datasets and a time-based validation split.
+
 ## Prediction API
 
 The prediction service is separate from the app. This was an important design choice because machine learning and map rendering should not be tightly coupled.
@@ -228,6 +244,13 @@ The project currently has:
 - Node.js prediction service.
 - Hugging Face deployment folder.
 - GitHub-ready documentation.
+
+Supporting documentation:
+
+- [API reference](docs/API.md)
+- [Testing checklist](docs/TESTING.md)
+- [Screenshot guide](docs/screenshots/README.md)
+- [Data source notes](data/DATA_SOURCES.md)
 
 ## Limitations
 
