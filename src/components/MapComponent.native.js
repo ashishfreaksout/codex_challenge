@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { PanResponder, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, PanResponder, Pressable, StyleSheet, Text, View } from "react-native";
 import { Minus, Plus } from "lucide-react-native";
 import MapView, { Callout, Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import Svg, { Circle as SvgCircle, Polygon as SvgPolygon } from "react-native-svg";
 import styled from "styled-components/native";
 
 import { MODERN_MAP_STYLE } from "../constants/mapStyle";
 import { BAY_AREA_LOCATIONS, SAN_JOSE_INITIAL_REGION } from "../constants/neighborhoods";
+import { fetchPredictiveMap, predictionServiceUrl } from "../services/predictiveMapApi";
 import { colors } from "../theme";
 
 const TILE_SIZE = 256;
@@ -22,10 +24,13 @@ export default function MapComponent({
   driverLocation,
   driverHeading = 0,
   navigationMode = false,
-  onMarkerPress
+  onMarkerPress,
+  viewMode,
+  predictionRefreshToken
 }) {
   const nativeTileProvider = process.env.EXPO_PUBLIC_NATIVE_TILE_PROVIDER || "osm";
   const useOpenStreetMapTiles = nativeTileProvider !== "google";
+  const predictionState = usePredictiveMap(viewMode, predictionRefreshToken);
 
   if (useOpenStreetMapTiles) {
     return (
@@ -37,6 +42,8 @@ export default function MapComponent({
         driverLocation={driverLocation}
         driverHeading={driverHeading}
         onMarkerPress={onMarkerPress}
+        viewMode={viewMode}
+        predictionState={predictionState}
       />
     );
   }
@@ -51,6 +58,8 @@ export default function MapComponent({
       driverHeading={driverHeading}
       navigationMode={navigationMode}
       onMarkerPress={onMarkerPress}
+      viewMode={viewMode}
+      predictionState={predictionState}
     />
   );
 }
@@ -63,7 +72,9 @@ function GoogleNativeMap({
   driverLocation,
   driverHeading,
   navigationMode,
-  onMarkerPress
+  onMarkerPress,
+  viewMode,
+  predictionState
 }) {
   const mapRef = useRef(null);
 
@@ -123,6 +134,13 @@ function GoogleNativeMap({
       toolbarEnabled={false}
       mapPadding={{ top: navigationMode ? 92 : 158, right: 16, bottom: 152, left: 16 }}
     >
+      <NativeProbabilityLayer
+        visible={viewMode === "predicted"}
+        features={predictionState.features}
+        projectCoordinate={(coordinate) => coordinate}
+        googleMapMode
+      />
+
       {potholes.map((pothole) => (
         <Marker
           key={pothole.id}
@@ -164,7 +182,9 @@ function NativeTileMap({
   draftLocation,
   driverLocation,
   driverHeading,
-  onMarkerPress
+  onMarkerPress,
+  viewMode,
+  predictionState
 }) {
   const [center, setCenter] = useState({
     latitude: SAN_JOSE_INITIAL_REGION.latitude,
@@ -292,6 +312,13 @@ function NativeTileMap({
           />
         ))}
 
+        <NativeProbabilityLayer
+          visible={viewMode === "predicted"}
+          features={predictionState.features}
+          projectCoordinate={projectCoordinate}
+          zoom={zoom}
+        />
+
         {BAY_AREA_LOCATIONS.slice(0, 14).map((location) => {
           const position = projectCoordinate(location.coordinate);
           return (
@@ -358,9 +385,209 @@ function NativeTileMap({
         <FallbackZoomText>z{zoom}</FallbackZoomText>
       </FallbackZoomControl>
 
+      {viewMode === "predicted" ? (
+        <PredictionNotice>
+          {predictionState.loading ? (
+            <ActivityIndicator size="small" color={colors.accent} />
+          ) : null}
+          <PredictionNoticeTitle>
+            {predictionState.error ? "Prediction unavailable" : "AI probability hotspots"}
+          </PredictionNoticeTitle>
+          <PredictionNoticeText>
+            {predictionState.error
+              ? "Could not load the prediction service."
+              : `${predictionState.features.length} risk cells from ${predictionServiceUrl}`}
+          </PredictionNoticeText>
+        </PredictionNotice>
+      ) : null}
+
       <FallbackAttribution>© OpenStreetMap © CARTO</FallbackAttribution>
     </FallbackTileMap>
   );
+}
+
+function usePredictiveMap(viewMode, predictionRefreshToken) {
+  const [state, setState] = useState({
+    features: [],
+    metadata: null,
+    loading: false,
+    error: null
+  });
+
+  useEffect(() => {
+    if (viewMode !== "predicted") {
+      return;
+    }
+
+    let cancelled = false;
+    setState((current) => ({ ...current, loading: true, error: null }));
+
+    fetchPredictiveMap({ minScore: 0.42, limit: 3000 })
+      .then((geojson) => {
+        if (!cancelled) {
+          setState({
+            features: geojson.features || [],
+            metadata: geojson.properties || null,
+            loading: false,
+            error: null
+          });
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setState({
+            features: [],
+            metadata: null,
+            loading: false,
+            error
+          });
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [predictionRefreshToken, viewMode]);
+
+  return state;
+}
+
+function NativeProbabilityLayer({ features, projectCoordinate, visible, zoom = 10, googleMapMode = false }) {
+  if (!visible || !features?.length || googleMapMode) {
+    return null;
+  }
+
+  return (
+    <Svg width="100%" height="100%" style={StyleSheet.absoluteFillObject} pointerEvents="none">
+      {features.map((feature) => {
+        const center = projectedFeatureCenter(feature, projectCoordinate);
+        if (!center) {
+          return null;
+        }
+
+        const score = probabilityScore(feature);
+        const color = probabilityColor(score);
+        const radius = haloRadiusPixels(score, zoom);
+
+        if (radius <= 0) {
+          return null;
+        }
+
+        return (
+          <SvgCircle
+            key={`${feature.id || feature.properties?.cell_id}-halo`}
+            cx={center.left}
+            cy={center.top}
+            r={radius}
+            fill={color}
+            fillOpacity={0.16}
+            stroke={color}
+            strokeOpacity={0.24}
+            strokeWidth={2}
+          />
+        );
+      })}
+
+      {features.map((feature) => {
+        const points = polygonPoints(feature, projectCoordinate);
+        if (!points) {
+          return null;
+        }
+
+        const score = probabilityScore(feature);
+        const color = probabilityColor(score);
+        return (
+          <SvgPolygon
+            key={feature.id || feature.properties?.cell_id}
+            points={points}
+            fill={color}
+            fillOpacity={0.38}
+            stroke={color}
+            strokeOpacity={0.58}
+            strokeWidth={1}
+          />
+        );
+      })}
+    </Svg>
+  );
+}
+
+function polygonPoints(feature, projectCoordinate) {
+  const ring = feature.geometry?.coordinates?.[0];
+
+  if (!Array.isArray(ring) || !ring.length) {
+    return null;
+  }
+
+  return ring
+    .map(([longitude, latitude]) => {
+      const point = projectCoordinate({ latitude, longitude });
+      return `${point.left},${point.top}`;
+    })
+    .join(" ");
+}
+
+function probabilityScore(feature) {
+  return Number(feature.properties?.probability_score || 0);
+}
+
+function probabilityColor(score) {
+  const clamped = Math.max(0, Math.min(Number(score) || 0, 1));
+  const start = clamped < 0.5 ? [34, 197, 94] : [234, 179, 8];
+  const end = clamped < 0.5 ? [234, 179, 8] : [239, 68, 68];
+  const ratio = clamped < 0.5 ? clamped / 0.5 : (clamped - 0.5) / 0.5;
+  const [red, green, blue] = start.map((channel, index) =>
+    Math.round(channel + (end[index] - channel) * ratio)
+  );
+
+  return `rgb(${red}, ${green}, ${blue})`;
+}
+
+function haloRadiusPixels(score, zoom) {
+  if (zoom >= 13) {
+    return 0;
+  }
+
+  if (zoom >= 12) {
+    return 6 + score * 8;
+  }
+
+  if (zoom >= 10) {
+    return 10 + score * 12;
+  }
+
+  return 14 + score * 16;
+}
+
+function projectedFeatureCenter(feature, projectCoordinate) {
+  const center = featureCenter(feature);
+  return center ? projectCoordinate(center) : null;
+}
+
+function featureCenter(feature) {
+  const center = feature.properties?.center;
+  if (center?.latitude && center?.longitude) {
+    return center;
+  }
+
+  const ring = feature.geometry?.coordinates?.[0];
+  if (!Array.isArray(ring) || !ring.length) {
+    return null;
+  }
+
+  const uniquePoints = ring.slice(0, -1);
+  const totals = uniquePoints.reduce(
+    (accumulator, [longitude, latitude]) => ({
+      latitude: accumulator.latitude + latitude,
+      longitude: accumulator.longitude + longitude
+    }),
+    { latitude: 0, longitude: 0 }
+  );
+
+  return {
+    latitude: totals.latitude / uniquePoints.length,
+    longitude: totals.longitude / uniquePoints.length
+  };
 }
 
 function latLngToPixel(coordinate, zoom) {
@@ -528,6 +755,32 @@ const FallbackZoomText = styled.Text`
   font-size: 11px;
   font-weight: 900;
   text-align: center;
+`;
+
+const PredictionNotice = styled.View`
+  position: absolute;
+  left: 14px;
+  bottom: 98px;
+  max-width: 310px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background-color: rgba(255, 255, 255, 0.9);
+  border-width: 1px;
+  border-color: rgba(15, 23, 42, 0.1);
+  gap: 3px;
+  z-index: 9;
+`;
+
+const PredictionNoticeTitle = styled.Text`
+  color: ${colors.textStrong};
+  font-size: 13px;
+  font-weight: 900;
+`;
+
+const PredictionNoticeText = styled.Text`
+  color: ${colors.textMuted};
+  font-size: 11px;
+  font-weight: 700;
 `;
 
 const FallbackAttribution = styled.Text`

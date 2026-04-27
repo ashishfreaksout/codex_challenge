@@ -73,6 +73,8 @@ export default function App() {
   const [viewMode, setViewMode] = useState("reported");
   const [predictionRefreshToken, setPredictionRefreshToken] = useState(0);
   const [driverRiskAlert, setDriverRiskAlert] = useState(null);
+  const [liveDriverLocation, setLiveDriverLocation] = useState(null);
+  const [isLocatingDriver, setIsLocatingDriver] = useState(false);
   const [sandboxDriverActive, setSandboxDriverActive] = useState(false);
   const [sandboxDriverLocation, setSandboxDriverLocation] = useState(null);
   const [sandboxNavigationActive, setSandboxNavigationActive] = useState(sandbox3DNavigationEnabled);
@@ -258,6 +260,20 @@ export default function App() {
           return;
         }
 
+        const currentPosition = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced
+        });
+        if (mounted) {
+          const coordinate = {
+            latitude: currentPosition.coords.latitude,
+            longitude: currentPosition.coords.longitude,
+            latitudeDelta: 0.012,
+            longitudeDelta: 0.012
+          };
+          setLiveDriverLocation(coordinate);
+          runDriverRiskCheck(coordinate);
+        }
+
         locationSubscription = await Location.watchPositionAsync(
           {
             accuracy: Location.Accuracy.Balanced,
@@ -265,10 +281,16 @@ export default function App() {
             timeInterval: 15000
           },
           ({ coords }) => {
-            runDriverRiskCheck({
+            const coordinate = {
               latitude: coords.latitude,
               longitude: coords.longitude
+            };
+            setLiveDriverLocation({
+              ...coordinate,
+              latitudeDelta: 0.012,
+              longitudeDelta: 0.012
             });
+            runDriverRiskCheck(coordinate);
           }
         );
       } catch (error) {
@@ -433,9 +455,45 @@ export default function App() {
     setLocationMessage("");
   };
 
+  const centerOnCurrentLocation = async () => {
+    setIsLocatingDriver(true);
+
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "Location permission needed",
+          "Enable location permission to center the map on your current position."
+        );
+        return;
+      }
+
+      const currentPosition = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High
+      });
+      const coordinate = {
+        latitude: currentPosition.coords.latitude,
+        longitude: currentPosition.coords.longitude,
+        latitudeDelta: 0.012,
+        longitudeDelta: 0.012
+      };
+
+      setLiveDriverLocation(coordinate);
+      setMapFocus(coordinate);
+      runDriverRiskCheck(coordinate, { force: true });
+    } catch (error) {
+      Alert.alert(
+        "Location unavailable",
+        "Your current GPS location could not be captured. Check emulator/device location settings."
+      );
+    } finally {
+      setIsLocatingDriver(false);
+    }
+  };
+
   const activeDriverLocation = sandboxNavigationActive
     ? sandboxNavigationLocation
-    : sandboxDriverLocation;
+    : sandboxDriverLocation || liveDriverLocation;
   const useSandboxNavigationScene =
     sandboxNavigationActive && !process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
 
@@ -572,17 +630,15 @@ export default function App() {
 
       {!sandboxNavigationActive ? (
         <LocateButton
-          onPress={() =>
-            setMapFocus({
-              ...BAY_AREA_CENTER,
-              latitudeDelta: 0.78,
-              longitudeDelta: 0.9
-            })
-          }
+          onPress={centerOnCurrentLocation}
           accessibilityRole="button"
-          accessibilityLabel="Center on Bay Area"
+          accessibilityLabel="Center on my location"
         >
-          <Crosshair size={20} color={colors.textStrong} />
+          {isLocatingDriver ? (
+            <ActivityIndicator color={colors.textStrong} />
+          ) : (
+            <Crosshair size={20} color={colors.textStrong} />
+          )}
         </LocateButton>
       ) : null}
 
