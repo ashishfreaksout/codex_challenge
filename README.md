@@ -25,6 +25,8 @@ Create `.env` from `.env.example` and set `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY`. The
 
 Without a Google Maps key, the web app shows an OpenStreetMap-based Bay Area preview with the mock pothole data so the UI can still be reviewed. Add the key to switch the web build to Google Maps.
 
+Native Android APKs default to `EXPO_PUBLIC_NATIVE_TILE_PROVIDER=osm`, which renders OpenStreetMap tiles through the native map view. Set `EXPO_PUBLIC_NATIVE_TILE_PROVIDER=google` only after the Google Maps Android SDK key is enabled for the APK package and signing SHA-1.
+
 If `EXPO_PUBLIC_BAY_AREA_311_ENDPOINT` and `EXPO_PUBLIC_SAN_JOSE_311_ENDPOINT` are unset, the app uses the mock Bay Area 311 response in `src/data/MockData.js`. When an endpoint is available, `src/services/sanJose311Api.js` normalizes its records into the same pothole shape used by the mock local repository.
 
 ## Predictive Hotspots

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import MapView, { Callout, Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import MapView, { Callout, Marker, PROVIDER_GOOGLE, UrlTile } from "react-native-maps";
 import styled from "styled-components/native";
 
 import { MODERN_MAP_STYLE } from "../constants/mapStyle";
@@ -18,6 +18,8 @@ export default function MapComponent({
   onMarkerPress
 }) {
   const mapRef = useRef(null);
+  const nativeTileProvider = process.env.EXPO_PUBLIC_NATIVE_TILE_PROVIDER || "osm";
+  const useOpenStreetMapTiles = nativeTileProvider !== "google";
 
   useEffect(() => {
     if (!mapRef.current) {
@@ -61,7 +63,8 @@ export default function MapComponent({
       provider={PROVIDER_GOOGLE}
       style={StyleSheet.absoluteFillObject}
       initialRegion={SAN_JOSE_INITIAL_REGION}
-      customMapStyle={MODERN_MAP_STYLE}
+      customMapStyle={useOpenStreetMapTiles ? undefined : MODERN_MAP_STYLE}
+      mapType={useOpenStreetMapTiles ? "none" : "standard"}
       showsUserLocation
       showsMyLocationButton={false}
       showsBuildings={false}
@@ -75,6 +78,14 @@ export default function MapComponent({
       toolbarEnabled={false}
       mapPadding={{ top: navigationMode ? 92 : 158, right: 16, bottom: 152, left: 16 }}
     >
+      {useOpenStreetMapTiles ? (
+        <UrlTile
+          urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+          maximumZ={19}
+          tileSize={256}
+        />
+      ) : null}
+
       {potholes.map((pothole) => (
         <Marker
           key={pothole.id}
