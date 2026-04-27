@@ -22,6 +22,7 @@ The final project includes:
 
 - A React Native Expo mobile app.
 - A web-compatible map preview.
+- A GitHub Pages hosted web deployment workflow.
 - Live pothole markers from mock/API-shaped 311 data.
 - Bay Area historical pothole sample data.
 - Environmental predictor data for rainfall, drainage, pavement, and traffic conditions.
@@ -248,6 +249,7 @@ The project currently has:
 Supporting documentation:
 
 - [API reference](docs/API.md)
+- [Web deployment guide](docs/DEPLOYMENT.md)
 - [Testing checklist](docs/TESTING.md)
 - [Screenshot guide](docs/screenshots/README.md)
 - [Data source notes](data/DATA_SOURCES.md)

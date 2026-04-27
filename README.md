@@ -2,6 +2,16 @@
 
 Expo React Native app for tracking potholes across the Bay Area with Google Maps or an OpenStreetMap web preview, mock 311 data, local report state, search, status filtering, and AI probability hotspots.
 
+## Hosted Web Demo
+
+Public web app:
+
+```text
+https://ashishfreaksout.github.io/codex_challenge/
+```
+
+The hosted web build uses the OpenStreetMap/CARTO fallback so it can be viewed publicly without exposing a Google Maps browser key. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the GitHub Pages deployment workflow.
+
 ## Project Case Study
 
 For a visual project overview, development story, architecture diagram, and human/Codex collaboration summary, see [PROJECT_CASE_STUDY.md](PROJECT_CASE_STUDY.md).
@@ -10,6 +20,7 @@ Additional documentation:
 
 - [Model evaluation notebook](docs/model_evaluation.ipynb)
 - [Prediction API reference](docs/API.md)
+- [Web deployment guide](docs/DEPLOYMENT.md)
 - [Testing checklist](docs/TESTING.md)
 - [Screenshot guide](docs/screenshots/README.md)
 - [Data source notes](data/DATA_SOURCES.md)
@@ -22,6 +33,12 @@ npm run start
 ```
 
 Use `npm run web` for the browser build, or `npm run android` after creating native projects with Expo.
+
+To build the static web app for GitHub Pages:
+
+```bash
+EXPO_NO_DOTENV=1 EXPO_PUBLIC_PREDICTION_SERVICE_URL=https://ashishfreaksout-bay-area-pothole-prediction-api.hf.space npm run export:web:pages
+```
 
 ## Android APK
 

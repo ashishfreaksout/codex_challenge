@@ -4,6 +4,7 @@ node_modules
 __pycache__
 *.py[cod]
 dist
+dist-gh-pages
 predictive-service/data/risk_grid.geojson
 .env
 .env.*

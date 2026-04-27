@@ -57,7 +57,31 @@ Expected result:
 - Predicted hotspot mode displays probability cells.
 - Search and filter controls remain readable.
 
-## 5. Android Actual App
+## 5. Build Static Web App
+
+```bash
+EXPO_NO_DOTENV=1 EXPO_PUBLIC_PREDICTION_SERVICE_URL=https://ashishfreaksout-bay-area-pothole-prediction-api.hf.space npm run export:web:pages
+```
+
+Expected result:
+
+- `dist/index.html` is generated.
+- `dist/.nojekyll` exists.
+- Expo bundle paths use `./_expo/...` so GitHub Pages project hosting works.
+- The exported build does not depend on the local `.env` file.
+
+## 6. GitHub Pages Deployment
+
+The `Deploy Web App` workflow should run after pushes to `main`.
+
+Expected result:
+
+- GitHub Actions completes successfully.
+- The web app opens at `https://ashishfreaksout.github.io/codex_challenge/`.
+- The map renders using OpenStreetMap/CARTO tiles.
+- Predicted hotspots load from the hosted prediction service.
+
+## 7. Android Actual App
 
 Build command:
 
@@ -75,7 +99,7 @@ Expected result:
 - Pinch zoom works in Live, Predicted, and 3D Nav modes.
 - Location button recenters on the user location when permission is granted.
 
-## 6. Android Sandbox App
+## 8. Android Sandbox App
 
 Build command:
 
@@ -92,7 +116,7 @@ Expected result:
 
 After building the sandbox version, reset the EAS preview environment flag to `false` before future normal builds.
 
-## 7. Model Evaluation Notebook
+## 9. Model Evaluation Notebook
 
 Regenerate the notebook and figures:
 
@@ -115,7 +139,7 @@ Review:
 - Risk grid distribution.
 - Live-vs-predicted comparison.
 
-## 8. Manual UI Review
+## 10. Manual UI Review
 
 Check:
 
@@ -126,7 +150,7 @@ Check:
 - Hotspot opacity allows streets to remain visible.
 - The app does not look cluttered while driving.
 
-## 9. Known Prototype Limitations
+## 11. Known Prototype Limitations
 
 - Sample datasets are small.
 - Prediction service updates are not yet persisted to a database.
