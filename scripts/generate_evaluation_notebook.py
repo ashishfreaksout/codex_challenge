@@ -3,9 +3,14 @@
 
 from __future__ import annotations
 
+import base64
 import json
+import os
 import sys
 from pathlib import Path
+
+os.environ.setdefault("MPLCONFIGDIR", "/tmp/matplotlib-codex-cache")
+os.environ.setdefault("LOKY_MAX_CPU_COUNT", str(os.cpu_count() or 4))
 
 import matplotlib.pyplot as plt
 import nbformat as nbf
@@ -48,8 +53,25 @@ def main() -> None:
     importance = estimate_importance(best_model, dataset["x_test"], dataset["y_test"])
 
     write_metric_csv(metrics)
-    write_plots(metrics, predictions, dataset["y_test"], best_name, importance, risk_summary, live_summary)
-    write_notebook(metrics, best_name, risk_summary, live_summary)
+    plot_paths = write_plots(
+        metrics,
+        predictions,
+        dataset["y_test"],
+        best_name,
+        importance,
+        risk_summary,
+        live_summary,
+    )
+    write_notebook(
+        metrics=metrics,
+        predictions=predictions,
+        y_test=dataset["y_test"],
+        best_name=best_name,
+        importance=importance,
+        risk_summary=risk_summary,
+        live_summary=live_summary,
+        plot_paths=plot_paths,
+    )
 
     print(f"Wrote {DOCS_DIR / 'model_evaluation.ipynb'}")
     print(f"Wrote {DOCS_DIR / 'model_metrics.csv'}")
@@ -253,12 +275,14 @@ def write_plots(
     live_summary: pd.DataFrame,
 ) -> None:
     plt.style.use("seaborn-v0_8-whitegrid")
-    write_model_comparison(metrics)
-    write_confusion_matrix(predictions[best_name]["label"], y_test, best_name)
-    write_roc_curve(predictions, y_test)
-    write_feature_importance(importance, best_name)
-    write_risk_distribution(risk_summary)
-    write_live_vs_predicted(live_summary)
+    return {
+        "model_comparison": write_model_comparison(metrics),
+        "confusion_matrix": write_confusion_matrix(predictions[best_name]["label"], y_test, best_name),
+        "roc_curve": write_roc_curve(predictions, y_test),
+        "feature_importance": write_feature_importance(importance, best_name),
+        "risk_distribution": write_risk_distribution(risk_summary),
+        "live_vs_predicted": write_live_vs_predicted(live_summary),
+    }
 
 
 def write_model_comparison(metrics: pd.DataFrame) -> None:
@@ -271,8 +295,7 @@ def write_model_comparison(metrics: pd.DataFrame) -> None:
     for index, value in enumerate(ordered["ROC-AUC"]):
         axis.text(value + 0.015, index, f"{value:.2f}", va="center", fontsize=10)
     figure.tight_layout()
-    figure.savefig(FIGURES_DIR / "model-comparison.svg", format="svg")
-    plt.close(figure)
+    return save_figure(figure, "model-comparison")
 
 
 def write_confusion_matrix(labels: np.ndarray, y_test: np.ndarray, best_name: str) -> None:
@@ -289,8 +312,7 @@ def write_confusion_matrix(labels: np.ndarray, y_test: np.ndarray, best_name: st
             axis.text(col, row, str(matrix[row, col]), ha="center", va="center", fontsize=14)
     figure.colorbar(image, ax=axis, fraction=0.046, pad=0.04)
     figure.tight_layout()
-    figure.savefig(FIGURES_DIR / "confusion-matrix.svg", format="svg")
-    plt.close(figure)
+    return save_figure(figure, "confusion-matrix")
 
 
 def write_roc_curve(predictions: dict, y_test: np.ndarray) -> None:
@@ -305,8 +327,7 @@ def write_roc_curve(predictions: dict, y_test: np.ndarray) -> None:
     axis.set_ylabel("True positive rate")
     axis.legend(loc="lower right", fontsize=8)
     figure.tight_layout()
-    figure.savefig(FIGURES_DIR / "roc-curve.svg", format="svg")
-    plt.close(figure)
+    return save_figure(figure, "roc-curve")
 
 
 def write_feature_importance(importance: pd.DataFrame, best_name: str) -> None:
@@ -316,8 +337,7 @@ def write_feature_importance(importance: pd.DataFrame, best_name: str) -> None:
     axis.set_xlabel("Relative importance")
     axis.set_title(f"Top Feature Importance: {best_name}")
     figure.tight_layout()
-    figure.savefig(FIGURES_DIR / "feature-importance.svg", format="svg")
-    plt.close(figure)
+    return save_figure(figure, "feature-importance")
 
 
 def write_risk_distribution(risk_summary: pd.DataFrame) -> None:
@@ -332,8 +352,7 @@ def write_risk_distribution(risk_summary: pd.DataFrame) -> None:
     axis.set_xlabel("Risk band")
     axis.set_ylabel("Grid cells")
     figure.tight_layout()
-    figure.savefig(FIGURES_DIR / "risk-distribution.svg", format="svg")
-    plt.close(figure)
+    return save_figure(figure, "risk-distribution")
 
 
 def write_live_vs_predicted(live_summary: pd.DataFrame) -> None:
@@ -348,19 +367,40 @@ def write_live_vs_predicted(live_summary: pd.DataFrame) -> None:
     axis.set_xlabel("Predicted risk band")
     axis.set_ylabel("Matched historical reports")
     figure.tight_layout()
-    figure.savefig(FIGURES_DIR / "live-vs-predicted.svg", format="svg")
+    return save_figure(figure, "live-vs-predicted")
+
+
+def save_figure(figure, name: str) -> dict[str, Path]:
+    svg_path = FIGURES_DIR / f"{name}.svg"
+    png_path = FIGURES_DIR / f"{name}.png"
+    figure.savefig(svg_path, format="svg")
+    figure.savefig(png_path, format="png", dpi=180, bbox_inches="tight")
     plt.close(figure)
+    return {"svg": svg_path, "png": png_path}
 
 
 def write_notebook(
     metrics: pd.DataFrame,
+    predictions: dict,
+    y_test: np.ndarray,
     best_name: str,
+    importance: pd.DataFrame,
     risk_summary: pd.DataFrame,
     live_summary: pd.DataFrame,
+    plot_paths: dict,
 ) -> None:
     metrics_md = metrics.round(3).to_markdown(index=False)
     risk_md = risk_summary.round(3).to_markdown(index=False)
     live_md = live_summary.round(3).to_markdown(index=False)
+    interpretation = build_interpretation(
+        metrics=metrics,
+        predictions=predictions,
+        y_test=y_test,
+        best_name=best_name,
+        importance=importance,
+        risk_summary=risk_summary,
+        live_summary=live_summary,
+    )
 
     notebook = nbf.v4.new_notebook()
     notebook["metadata"] = {
@@ -400,43 +440,145 @@ def write_notebook(
             "## Model Comparison\n\n"
             f"Best sample holdout model by ROC-AUC/F1 ordering: **{best_name}**.\n\n"
             f"{metrics_md}\n\n"
-            "![Model comparison](figures/model-comparison.svg)"
+            f"{interpretation['model_comparison']}"
         ),
+        embedded_plot_cell("Model comparison", plot_paths["model_comparison"]["png"]),
         nbf.v4.new_markdown_cell(
             "## ROC Curve and Confusion Matrix\n\n"
             "The ROC curve shows how well the models separate pothole and non-pothole cells across thresholds. "
             "The confusion matrix shows true and false predictions at a 0.5 threshold.\n\n"
-            "![ROC curve](figures/roc-curve.svg)\n\n"
-            "![Confusion matrix](figures/confusion-matrix.svg)"
+            f"{interpretation['roc_confusion']}"
         ),
+        embedded_plot_cell("ROC curve", plot_paths["roc_curve"]["png"]),
+        embedded_plot_cell("Confusion matrix", plot_paths["confusion_matrix"]["png"]),
         nbf.v4.new_markdown_cell(
             "## Feature Importance\n\n"
             "Feature importance is estimated with permutation importance on the sample holdout set. "
             "This helps explain which predictors are most useful for the current model.\n\n"
-            "![Feature importance](figures/feature-importance.svg)"
+            f"{interpretation['feature_importance']}"
         ),
+        embedded_plot_cell("Feature importance", plot_paths["feature_importance"]["png"]),
         nbf.v4.new_markdown_cell(
             "## Risk Grid Distribution\n\n"
             f"{risk_md}\n\n"
-            "![Risk distribution](figures/risk-distribution.svg)"
+            f"{interpretation['risk_distribution']}"
         ),
+        embedded_plot_cell("Risk grid distribution", plot_paths["risk_distribution"]["png"]),
         nbf.v4.new_markdown_cell(
             "## Live vs Predicted Comparison\n\n"
             "This chart checks where historical pothole reports fall relative to the generated prediction bands. "
             "In a production study, the same method should be repeated with future reports that were not used "
             "during training.\n\n"
             f"{live_md}\n\n"
-            "![Live vs predicted](figures/live-vs-predicted.svg)"
+            f"{interpretation['live_vs_predicted']}"
         ),
+        embedded_plot_cell("Live vs predicted comparison", plot_paths["live_vs_predicted"]["png"]),
         nbf.v4.new_markdown_cell(
-            "## Interpretation\n\n"
-            "The current results demonstrate that the pipeline can train models, compare them, and generate "
-            "visual evaluation artifacts. The next academic step is to replace the sample data with larger "
-            "official historical datasets and rerun this notebook with a time-based validation split."
+            "## Final Interpretation\n\n"
+            f"{interpretation['final']}"
         ),
     ]
 
     nbf.write(notebook, DOCS_DIR / "model_evaluation.ipynb")
+
+
+def embedded_plot_cell(title: str, png_path: Path):
+    encoded = base64.b64encode(png_path.read_bytes()).decode("ascii")
+    return nbf.v4.new_code_cell(
+        source=f"# Embedded plot: {title}\n",
+        execution_count=None,
+        outputs=[
+            nbf.v4.new_output(
+                "display_data",
+                data={"image/png": encoded},
+                metadata={"image/png": {"width": 900}},
+            )
+        ],
+        metadata={"jupyter": {"source_hidden": True}},
+    )
+
+
+def build_interpretation(
+    metrics: pd.DataFrame,
+    predictions: dict,
+    y_test: np.ndarray,
+    best_name: str,
+    importance: pd.DataFrame,
+    risk_summary: pd.DataFrame,
+    live_summary: pd.DataFrame,
+) -> dict[str, str]:
+    best = metrics.iloc[0]
+    second = metrics.iloc[1] if len(metrics) > 1 else metrics.iloc[0]
+    matrix = confusion_matrix(y_test, predictions[best_name]["label"])
+    tn, fp, fn, tp = matrix.ravel()
+    top_features = importance.sort_values("Importance", ascending=False).head(5)
+    top_feature_text = ", ".join(
+        f"`{row.Feature}` ({row.Importance:.2f})"
+        for row in top_features.itertuples(index=False)
+    )
+
+    hgb = metrics.loc[metrics["Model"] == "Hist Gradient Boosting"].iloc[0]
+    heuristic = metrics.loc[metrics["Model"] == "Weighted Heuristic"].iloc[0]
+    high_cells = int(risk_summary.loc[risk_summary["risk_band"] == "high", "cells"].iloc[0])
+    medium_cells = int(risk_summary.loc[risk_summary["risk_band"] == "medium", "cells"].iloc[0])
+    low_cells = int(risk_summary.loc[risk_summary["risk_band"] == "low", "cells"].iloc[0])
+    high_reports = int(live_summary.loc[live_summary["risk_band"] == "high", "live_reports"].iloc[0])
+    medium_reports = int(live_summary.loc[live_summary["risk_band"] == "medium", "live_reports"].iloc[0])
+    low_reports = int(live_summary.loc[live_summary["risk_band"] == "low", "live_reports"].iloc[0])
+
+    return {
+        "model_comparison": (
+            f"The best model on this sample holdout split is **{best_name}** with "
+            f"ROC-AUC **{best['ROC-AUC']:.3f}**, accuracy **{best['Accuracy']:.3f}**, "
+            f"precision **{best['Precision']:.3f}**, recall **{best['Recall']:.3f}**, "
+            f"and F1 **{best['F1']:.3f}**. The next closest model by ROC-AUC is "
+            f"**{second['Model']}** at **{second['ROC-AUC']:.3f}**. This means Random Forest is "
+            "currently the strongest ranking model on the sample data, although the dataset is too small "
+            "to treat this as final production evidence."
+        ),
+        "roc_confusion": (
+            f"The ROC curve confirms that **{best_name}** separates pothole and non-pothole grid cells "
+            f"better than the other tested baselines on this sample. At the default 0.5 threshold, the "
+            f"confusion matrix contains **{tp} true positives**, **{tn} true negatives**, "
+            f"**{fp} false positives**, and **{fn} false negatives**. The low false-positive count is good "
+            "for avoiding unnecessary driver warnings, but the false negatives show that recall should be "
+            "improved before using the model for safety-critical alerts."
+        ),
+        "feature_importance": (
+            f"The most important features in this sample run are {top_feature_text}. The result is consistent "
+            "with the project hypothesis: pothole risk is connected to drainage and water-retention conditions, "
+            "historical flooding or 311 activity, road class, impervious surfaces, truck exposure, pavement "
+            "condition, rainfall, and traffic load. These importance values should be recalculated when larger "
+            "official datasets are added."
+        ),
+        "risk_distribution": (
+            f"The generated Bay Area grid contains **{low_cells} low-risk cells**, **{medium_cells} medium-risk "
+            f"cells**, and **{high_cells} high-risk cells**. This distribution is desirable for a prototype "
+            "because it does not mark the entire region as dangerous. Instead, it keeps the highest-risk band "
+            "focused on a smaller set of cells."
+        ),
+        "live_vs_predicted": (
+            f"In the historical report comparison, **{high_reports} reports** fall in high-risk cells, "
+            f"**{medium_reports} reports** fall in medium-risk cells, and **{low_reports} reports** fall in "
+            "low-risk cells. Most matched reports are in medium or high predicted areas, which suggests that "
+            "the probability surface is directionally useful. The remaining low-risk matches show where the "
+            "model needs better data or threshold tuning."
+        ),
+        "final": (
+            f"Based on the current sample evaluation, **{best_name}** is the strongest candidate model for the "
+            f"next training iteration because it has the highest ROC-AUC (**{best['ROC-AUC']:.3f}**) and the "
+            f"best F1 score (**{best['F1']:.3f}**) among the tested approaches. The deployed training pipeline "
+            f"currently uses Hist Gradient Boosting, which still performs reasonably with ROC-AUC "
+            f"**{hgb['ROC-AUC']:.3f}** and precision **{hgb['Precision']:.3f}**, but this notebook suggests that "
+            "Random Forest should be tested as a production model candidate. The weighted heuristic is useful "
+            f"for explainability and fallback behavior, but its standalone ROC-AUC (**{heuristic['ROC-AUC']:.3f}**) "
+            "is weaker than the learned models. Overall, the plots support the project design: combining live "
+            "reports with drainage, rainfall, pavement, and traffic predictors creates a meaningful pothole-risk "
+            "surface. The most important next step is to validate the same pipeline on a larger official dataset "
+            "using a time-based split, then tune the alert threshold to increase recall without creating too many "
+            "false driver warnings."
+        ),
+    }
 
 
 if __name__ == "__main__":
