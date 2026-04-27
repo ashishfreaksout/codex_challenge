@@ -12,7 +12,12 @@ const HOTSPOTS = [
   { id: "south-second", latitude: 37.33106000718648, longitude: -121.88575744399904, score: 0.8 }
 ];
 
-export default function SandboxNavigationScene({ driverLocation, driverHeading }) {
+export default function SandboxNavigationScene({
+  driverLocation,
+  driverHeading,
+  title = "Downtown San Jose",
+  footerText = "3D navigation view"
+}) {
   const origin = driverLocation || SANDBOX_3D_NAVIGATION_START;
   const hotspots = HOTSPOTS.map((hotspot) => projectHotspot(origin, hotspot));
 
@@ -20,7 +25,7 @@ export default function SandboxNavigationScene({ driverLocation, driverHeading }
     <Scene>
       <SkyBand />
       <Horizon>
-        <HorizonTitle>Downtown San Jose</HorizonTitle>
+        <HorizonTitle>{title}</HorizonTitle>
       </Horizon>
       <RoadPlane style={{ transform: [{ perspective: 820 }, { rotateX: "62deg" }] }}>
         <RoadShoulder />
@@ -46,7 +51,7 @@ export default function SandboxNavigationScene({ driverLocation, driverHeading }
         </DriverArrow>
       </DriverCompass>
       <SceneFooter>
-        <SceneFooterText>Joystick sandbox route</SceneFooterText>
+        <SceneFooterText>{footerText}</SceneFooterText>
       </SceneFooter>
     </Scene>
   );

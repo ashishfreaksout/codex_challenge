@@ -7,7 +7,7 @@ import styled from "styled-components/native";
 
 import { MODERN_MAP_STYLE } from "../constants/mapStyle";
 import { BAY_AREA_LOCATIONS, SAN_JOSE_INITIAL_REGION } from "../constants/neighborhoods";
-import { fetchPredictiveMap, predictionServiceUrl } from "../services/predictiveMapApi";
+import { fetchPredictiveMap } from "../services/predictiveMapApi";
 import { colors } from "../theme";
 
 const TILE_SIZE = 256;
@@ -15,6 +15,9 @@ const TILE_URL_TEMPLATE = "https://a.basemaps.cartocdn.com/light_all";
 const FALLBACK_INITIAL_ZOOM = 10;
 const FALLBACK_MIN_ZOOM = 9;
 const FALLBACK_MAX_ZOOM = 17;
+const NATIVE_PREDICTION_LIMIT = 900;
+const NATIVE_VISIBLE_PREDICTION_LIMIT = 360;
+const NATIVE_PREDICTION_MIN_SCORE = 0.5;
 
 export default function MapComponent({
   potholes,
@@ -192,8 +195,11 @@ function NativeTileMap({
   });
   const [zoom, setZoom] = useState(FALLBACK_INITIAL_ZOOM);
   const [mapSize, setMapSize] = useState({ width: 0, height: 0 });
+  const [isPanning, setIsPanning] = useState(false);
   const centerRef = useRef(center);
   const panStartCenterRef = useRef(center);
+  const isPanningRef = useRef(false);
+  const panEndTimerRef = useRef(null);
 
   useEffect(() => {
     if (focusLocation) {
@@ -208,6 +214,15 @@ function NativeTileMap({
   useEffect(() => {
     centerRef.current = center;
   }, [center]);
+
+  useEffect(
+    () => () => {
+      if (panEndTimerRef.current) {
+        clearTimeout(panEndTimerRef.current);
+      }
+    },
+    []
+  );
 
   const centerPixel = useMemo(() => latLngToPixel(center, zoom), [center, zoom]);
 
@@ -254,12 +269,78 @@ function NativeTileMap({
     };
   };
 
+  const visiblePredictionFeatures = useMemo(() => {
+    if (viewMode !== "predicted" || !mapSize.width || !mapSize.height) {
+      return [];
+    }
+
+    const buffer = 120;
+    const visibleFeatures = [];
+
+    for (const feature of predictionState.features) {
+      const centerCoordinate = featureCenter(feature);
+      if (!centerCoordinate) {
+        continue;
+      }
+
+      const point = latLngToPixel(centerCoordinate, zoom);
+      const left = point.x - centerPixel.x + mapSize.width / 2;
+      const top = point.y - centerPixel.y + mapSize.height / 2;
+
+      if (
+        left >= -buffer &&
+        left <= mapSize.width + buffer &&
+        top >= -buffer &&
+        top <= mapSize.height + buffer
+      ) {
+        visibleFeatures.push(feature);
+      }
+
+      if (visibleFeatures.length >= NATIVE_VISIBLE_PREDICTION_LIMIT) {
+        break;
+      }
+    }
+
+    return visibleFeatures;
+  }, [
+    centerPixel.x,
+    centerPixel.y,
+    mapSize.height,
+    mapSize.width,
+    predictionState.features,
+    viewMode,
+    zoom
+  ]);
+
+  const beginPan = () => {
+    if (panEndTimerRef.current) {
+      clearTimeout(panEndTimerRef.current);
+    }
+
+    if (!isPanningRef.current) {
+      isPanningRef.current = true;
+      setIsPanning(true);
+    }
+  };
+
+  const finishPan = () => {
+    if (panEndTimerRef.current) {
+      clearTimeout(panEndTimerRef.current);
+    }
+
+    panEndTimerRef.current = setTimeout(() => {
+      isPanningRef.current = false;
+      setIsPanning(false);
+    }, 120);
+  };
+
   const panResponder = useMemo(
     () =>
       PanResponder.create({
         onMoveShouldSetPanResponder: (_, gestureState) =>
           Math.abs(gestureState.dx) > 4 || Math.abs(gestureState.dy) > 4,
         onPanResponderGrant: () => {
+          beginPan();
           panStartCenterRef.current = centerRef.current;
         },
         onPanResponderMove: (_, gestureState) => {
@@ -278,6 +359,8 @@ function NativeTileMap({
             )
           );
         },
+        onPanResponderRelease: finishPan,
+        onPanResponderTerminate: finishPan,
         onPanResponderTerminationRequest: () => true
       }),
     [mapSize.height, mapSize.width, zoom]
@@ -313,8 +396,8 @@ function NativeTileMap({
         ))}
 
         <NativeProbabilityLayer
-          visible={viewMode === "predicted"}
-          features={predictionState.features}
+          visible={viewMode === "predicted" && !isPanning}
+          features={visiblePredictionFeatures}
           projectCoordinate={projectCoordinate}
           zoom={zoom}
         />
@@ -396,7 +479,9 @@ function NativeTileMap({
           <PredictionNoticeText>
             {predictionState.error
               ? "Could not load the prediction service."
-              : `${predictionState.features.length} risk cells from ${predictionServiceUrl}`}
+              : isPanning
+                ? "Hotspots pause while moving the map."
+                : `${visiblePredictionFeatures.length} visible risk cells from ${predictionState.features.length} loaded`}
           </PredictionNoticeText>
         </PredictionNotice>
       ) : null}
@@ -422,7 +507,7 @@ function usePredictiveMap(viewMode, predictionRefreshToken) {
     let cancelled = false;
     setState((current) => ({ ...current, loading: true, error: null }));
 
-    fetchPredictiveMap({ minScore: 0.42, limit: 3000 })
+    fetchPredictiveMap({ minScore: NATIVE_PREDICTION_MIN_SCORE, limit: NATIVE_PREDICTION_LIMIT })
       .then((geojson) => {
         if (!cancelled) {
           setState({

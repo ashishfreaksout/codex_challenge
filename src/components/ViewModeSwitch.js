@@ -1,6 +1,6 @@
 import React from "react";
 import { Pressable } from "react-native";
-import { AlertTriangle, BrainCircuit } from "lucide-react-native";
+import { AlertTriangle, BrainCircuit, Navigation } from "lucide-react-native";
 import styled from "styled-components/native";
 
 import { colors, radii, shadows } from "../theme";
@@ -8,13 +8,18 @@ import { colors, radii, shadows } from "../theme";
 const MODES = [
   {
     key: "reported",
-    label: "Live Reported",
+    label: "Live",
     Icon: AlertTriangle
   },
   {
     key: "predicted",
-    label: "AI Predicted Hotspots",
+    label: "Predicted",
     Icon: BrainCircuit
+  },
+  {
+    key: "navigation",
+    label: "3D Nav",
+    Icon: Navigation
   }
 ];
 
@@ -64,6 +69,6 @@ const ModeButton = styled(Pressable)`
 
 const ModeLabel = styled.Text`
   color: ${({ $active }) => ($active ? colors.white : colors.textStrong)};
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
 `;

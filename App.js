@@ -74,6 +74,7 @@ export default function App() {
   const [predictionRefreshToken, setPredictionRefreshToken] = useState(0);
   const [driverRiskAlert, setDriverRiskAlert] = useState(null);
   const [liveDriverLocation, setLiveDriverLocation] = useState(null);
+  const [liveDriverHeading, setLiveDriverHeading] = useState(SANDBOX_3D_NAVIGATION_HEADING);
   const [isLocatingDriver, setIsLocatingDriver] = useState(false);
   const [sandboxDriverActive, setSandboxDriverActive] = useState(false);
   const [sandboxDriverLocation, setSandboxDriverLocation] = useState(null);
@@ -271,6 +272,9 @@ export default function App() {
             longitudeDelta: 0.012
           };
           setLiveDriverLocation(coordinate);
+          if (Number.isFinite(currentPosition.coords.heading) && currentPosition.coords.heading >= 0) {
+            setLiveDriverHeading(currentPosition.coords.heading);
+          }
           runDriverRiskCheck(coordinate);
         }
 
@@ -290,6 +294,9 @@ export default function App() {
               latitudeDelta: 0.012,
               longitudeDelta: 0.012
             });
+            if (Number.isFinite(coords.heading) && coords.heading >= 0) {
+              setLiveDriverHeading(coords.heading);
+            }
             runDriverRiskCheck(coordinate);
           }
         );
@@ -479,6 +486,9 @@ export default function App() {
       };
 
       setLiveDriverLocation(coordinate);
+      if (Number.isFinite(currentPosition.coords.heading) && currentPosition.coords.heading >= 0) {
+        setLiveDriverHeading(currentPosition.coords.heading);
+      }
       setMapFocus(coordinate);
       runDriverRiskCheck(coordinate, { force: true });
     } catch (error) {
@@ -494,16 +504,28 @@ export default function App() {
   const activeDriverLocation = sandboxNavigationActive
     ? sandboxNavigationLocation
     : sandboxDriverLocation || liveDriverLocation;
+  const activeDriverHeading = sandboxNavigationActive
+    ? sandboxNavigationHeading
+    : liveDriverHeading;
   const useSandboxNavigationScene =
     sandboxNavigationActive && !process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+  const showLiveNavigationScene = !sandboxNavigationActive && viewMode === "navigation";
 
   return (
     <Screen>
       <StatusBar style="light" translucent />
-      {useSandboxNavigationScene ? (
+      {useSandboxNavigationScene || showLiveNavigationScene ? (
         <SandboxNavigationScene
-          driverLocation={activeDriverLocation}
-          driverHeading={sandboxNavigationHeading}
+          driverLocation={activeDriverLocation || liveDriverLocation}
+          driverHeading={activeDriverHeading}
+          title={showLiveNavigationScene ? "Live road view" : "Downtown San Jose"}
+          footerText={
+            showLiveNavigationScene
+              ? activeDriverLocation
+                ? "Live GPS heading view"
+                : "Waiting for GPS location"
+              : "Joystick sandbox route"
+          }
         />
       ) : (
         <MapComponent
@@ -512,7 +534,7 @@ export default function App() {
           focusLocation={mapFocus}
           draftLocation={reportVisible ? draftLocation : null}
           driverLocation={activeDriverLocation}
-          driverHeading={sandboxNavigationHeading}
+          driverHeading={activeDriverHeading}
           navigationMode={sandboxNavigationActive}
           onMarkerPress={setSelectedPothole}
           viewMode={viewMode}
