@@ -10,7 +10,7 @@ After the GitHub Pages workflow finishes, the web app should be available at:
 https://ashishfreaksout.github.io/codex_challenge/
 ```
 
-If the link returns 404, wait for the `Deploy Web App` GitHub Actions workflow to finish, then check the repository Pages settings and make sure the Pages source is set to **GitHub Actions**.
+If the link returns 404, wait for the `Deploy Web App` GitHub Actions workflow to finish, then check the repository Pages settings and make sure the Pages source is set to **Deploy from a branch**, using the `gh-pages` branch and `/ (root)` folder.
 
 ## How Deployment Works
 
@@ -22,8 +22,26 @@ It performs these steps:
 2. Exports the Expo web app into `dist`.
 3. Rewrites Expo's root-relative asset paths so they work under the GitHub Pages project path.
 4. Adds `.nojekyll` so GitHub Pages serves the `_expo` directory correctly.
-5. Uploads `dist` as a Pages artifact.
-6. Deploys the artifact to GitHub Pages.
+5. Pushes the contents of `dist` to the `gh-pages` branch.
+6. GitHub Pages serves the `gh-pages` branch after Pages is enabled in the repository settings.
+
+## One-Time GitHub Pages Setting
+
+In GitHub, open:
+
+```text
+Settings -> Pages
+```
+
+Set:
+
+```text
+Source: Deploy from a branch
+Branch: gh-pages
+Folder: / (root)
+```
+
+After saving, GitHub will publish the site at the public URL above.
 
 ## Map Provider
 

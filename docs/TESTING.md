@@ -81,6 +81,8 @@ Expected result:
 - The map renders using OpenStreetMap/CARTO tiles.
 - Predicted hotspots load from the hosted prediction service.
 
+If the GitHub Pages URL returns 404, enable Pages in repository settings with source `Deploy from a branch`, branch `gh-pages`, folder `/ (root)`.
+
 ## 7. Android Actual App
 
 Build command:
