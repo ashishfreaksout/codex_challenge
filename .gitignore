@@ -9,3 +9,5 @@ predictive-service/data/risk_grid.geojson
 .env
 .env.*
 !.env.example
+
+Project_DSA/
