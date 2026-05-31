@@ -7,7 +7,32 @@ export function predictionServiceUrl() {
   ).replace(/\/$/, "");
 }
 
-export async function fetchPredictiveMap({ bbox, minScore = 0.25, limit = 5000 } = {}) {
+export function isPostgisPredictionService() {
+  const url = predictionServiceUrl().toLowerCase();
+  return url.includes("localhost:8000") || url.includes("127.0.0.1:8000");
+}
+
+export function predictiveMapRequestOptions() {
+  if (isPostgisPredictionService()) {
+    return {
+      minScore: 0,
+      limit: 1500,
+      bufferMeters: 70
+    };
+  }
+
+  return {
+    minScore: 0.42,
+    limit: 3000
+  };
+}
+
+export async function fetchPredictiveMap({
+  bbox,
+  minScore = 0.25,
+  limit = 5000,
+  bufferMeters
+} = {}) {
   const params = new URLSearchParams({
     minScore: String(minScore),
     limit: String(limit)
@@ -15,6 +40,10 @@ export async function fetchPredictiveMap({ bbox, minScore = 0.25, limit = 5000 }
 
   if (bbox) {
     params.set("bbox", bbox.join(","));
+  }
+
+  if (bufferMeters) {
+    params.set("bufferMeters", String(bufferMeters));
   }
 
   const response = await fetch(

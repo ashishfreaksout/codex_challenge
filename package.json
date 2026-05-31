@@ -11,7 +11,17 @@
     "export:web": "expo export --platform web",
     "export:web:pages": "expo export --platform web --output-dir dist --clear && node scripts/prepare_pages_export.js dist",
     "predictive:train": "python3 ml/train_pothole_risk_model.py --input data/sample_bay_area_311_potholes.csv --environmental-features data/sample_bay_area_environmental_features.csv --output predictive-service/data/risk_grid.geojson --grid-size-meters 300 --max-environment-distance-m 9000",
-    "predictive:serve": "node predictive-service/src/server.js"
+    "predictive:serve": "node predictive-service/src/server.js",
+    "postgis:up": "docker compose up -d postgis",
+    "postgis:logs": "docker compose logs -f postgis",
+    "data:fetch:311:demo": ".venv/bin/python ingestion/fetch_sanjose_311.py --demo",
+    "data:fetch:osm": ".venv/bin/python ingestion/fetch_osm_roads.py --from-potholes data/raw/sanjose_311_potholes.json",
+    "data:fetch:osm:bay-area": ".venv/bin/python ingestion/fetch_osm_roads.py --from-potholes data/sample_bay_area_311_potholes.csv --around-potholes --output data/raw/osm_roads_bay_area.json",
+    "data:load": ".venv/bin/python ingestion/load_to_postgis.py --init-schema",
+    "data:load:bay-area-demo": ".venv/bin/python ingestion/load_to_postgis.py --init-schema --potholes data/sample_bay_area_311_potholes.csv --osm-roads data/raw/osm_roads_bay_area.json --pothole-source \"Bay Area 311 sample\"",
+    "data:refresh:bay-area-demo": "npm run data:load:bay-area-demo && npm run data:transform",
+    "data:transform": ".venv/bin/python transformations/build_road_risk_features.py",
+    "data:api": ".venv/bin/uvicorn data_service.main:app --reload --port 8000"
   },
   "dependencies": {
     "@expo/metro-runtime": "~55.0.10",

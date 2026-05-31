@@ -26,7 +26,7 @@ export default function ProbabilityGradientLayer({ features, projectCoordinate, 
 
         const score = probabilityScore(feature);
         const color = probabilityColor(score);
-        const radius = haloRadiusPixels(score, zoom);
+        const radius = haloRadiusPixels(score, zoom, feature);
 
         if (radius <= 0) {
           return null;
@@ -86,7 +86,7 @@ export function GoogleProbabilityGradientLayer({ features, visible, zoom = 10 })
     const score = probabilityScore(feature);
     const color = probabilityColor(score);
     const key = feature.id || feature.properties?.cell_id;
-    const haloRadius = haloRadiusMeters(score, zoom);
+    const haloRadius = haloRadiusMeters(score, zoom, feature);
 
     return [
       haloRadius > 0 ? <CircleF
@@ -158,10 +158,26 @@ function googlePolygonPaths(feature) {
 }
 
 function probabilityScore(feature) {
-  return Number(feature.properties?.probability_score || 0);
+  return Number(feature.properties?.probability_score ?? feature.properties?.risk_score ?? 0);
 }
 
-function haloRadiusPixels(score, zoom) {
+function haloRadiusPixels(score, zoom, feature) {
+  if (isPostgisRoadRiskFeature(feature)) {
+    if (zoom >= 13) {
+      return 8 + score * 10;
+    }
+
+    if (zoom >= 12) {
+      return 12 + score * 14;
+    }
+
+    if (zoom >= 10) {
+      return 18 + score * 18;
+    }
+
+    return 26 + score * 24;
+  }
+
   if (zoom >= 13) {
     return 0;
   }
@@ -177,7 +193,23 @@ function haloRadiusPixels(score, zoom) {
   return 14 + score * 16;
 }
 
-function haloRadiusMeters(score, zoom) {
+function haloRadiusMeters(score, zoom, feature) {
+  if (isPostgisRoadRiskFeature(feature)) {
+    if (zoom >= 14) {
+      return 60 + score * 100;
+    }
+
+    if (zoom >= 12) {
+      return 180 + score * 220;
+    }
+
+    if (zoom >= 10) {
+      return 700 + score * 800;
+    }
+
+    return 1200 + score * 1200;
+  }
+
   if (zoom >= 13) {
     return 0;
   }
@@ -187,6 +219,12 @@ function haloRadiusMeters(score, zoom) {
   }
 
   return 120 + score * 160;
+}
+
+function isPostgisRoadRiskFeature(feature) {
+  return feature.properties?.model_version?.includes("postgis-road-risk")
+    || feature.properties?.geometry_source === "osm_road_segment"
+    || feature.properties?.geometry_source === "report_cluster";
 }
 
 function projectedFeatureCenter(feature, projectCoordinate) {

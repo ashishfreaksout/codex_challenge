@@ -2,6 +2,8 @@
 
 This project has a prediction service that serves the pothole probability layer separately from the React Native app. The local Node.js service and the Hugging Face/FastAPI service use the same endpoint shape so the frontend can switch between them with `EXPO_PUBLIC_PREDICTION_SERVICE_URL`.
 
+The repo also includes a PostGIS-backed data engineering service in `data_service/main.py`. That service exposes raw geospatial pipeline outputs at `/risk-summary` and `/risk-grid`, plus a frontend-compatible `/api/v1/predictive-map` endpoint.
+
 ## Base URL
 
 Local development:
@@ -14,6 +16,12 @@ Hosted deployment example:
 
 ```text
 https://<your-hugging-face-space>.hf.space
+```
+
+PostGIS data service:
+
+```text
+http://localhost:8000
 ```
 
 ## Health Check
@@ -64,7 +72,7 @@ Important fields:
 GET /api/v1/predictive-map
 ```
 
-Returns GeoJSON polygons for pothole probability hotspots.
+Returns GeoJSON polygons for pothole probability hotspots. In the Node/Hugging Face prediction service, these are model grid cells. In the PostGIS data service, these are buffered road-risk features from `road_risk_features`, with `risk_score` mapped to `probability_score` for frontend compatibility.
 
 Query parameters:
 
@@ -91,6 +99,44 @@ Each returned GeoJSON feature includes:
 | `fill_opacity` | Suggested overlay opacity. |
 | `risk_explanation` | Top risk drivers for that cell when available. |
 | `center` | Cell center latitude/longitude. |
+
+PostGIS-backed responses may also include:
+
+| Property | Meaning |
+|---|---|
+| `road_segment_id` | OSM road ID when matched, or a fallback location ID. |
+| `street_name` | Road name from OSM or the 311 address fallback. |
+| `risk_score` | Explainable PostGIS feature-table score. |
+| `geometry_source` | `osm_road_segment` or `report_cluster`. |
+| `matched_osm_road_count` | Count of matched OSM road geometries in the segment group. |
+| `avg_match_distance_m` | Average report-to-road match distance in meters. |
+
+## PostGIS Risk Summary
+
+```http
+GET /risk-summary
+```
+
+Returns aggregate counts and top road-risk segments from `road_risk_features`.
+
+Important fields:
+
+| Field | Meaning |
+|---|---|
+| `total_segments` | Number of rows in the feature table. |
+| `avg_risk_score` | Average explainable risk score. |
+| `max_risk_score` | Highest current road risk score. |
+| `osm_matched_segments` | Segments matched to OSM road geometry. |
+| `report_cluster_segments` | Fallback report-cluster segments. |
+| `top_segments` | Highest-risk roads with report counts and match metadata. |
+
+## PostGIS Risk Grid
+
+```http
+GET /risk-grid
+```
+
+Returns the native `road_risk_features` GeoJSON. When OSM matching succeeds, features are OSM road `LineString` geometries. When OSM is unavailable, features fall back to report-cluster point geometries.
 
 ## Report New Pothole
 

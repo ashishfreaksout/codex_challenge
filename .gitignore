@@ -6,6 +6,7 @@ __pycache__
 dist
 dist-gh-pages
 predictive-service/data/risk_grid.geojson
+data/raw/
 .env
 .env.*
 !.env.example

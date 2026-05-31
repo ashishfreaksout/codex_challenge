@@ -44,7 +44,42 @@ Expected result:
 - `/health` returns `ok: true`.
 - `/api/v1/predictive-map` returns a GeoJSON `FeatureCollection`.
 
-## 4. Run the Web App
+## 4. Run the PostGIS Road Risk Data Service
+
+Start PostGIS and build the geospatial feature table:
+
+```bash
+docker compose up -d postgis
+.venv/bin/pip install -r requirements.txt
+.venv/bin/python ingestion/fetch_sanjose_311.py --demo
+npm run data:fetch:osm:bay-area
+npm run data:refresh:bay-area-demo
+```
+
+Run the API:
+
+```bash
+.venv/bin/uvicorn data_service.main:app --reload --port 8000
+```
+
+Verify:
+
+```bash
+curl http://localhost:8000/health
+curl http://localhost:8000/risk-summary
+curl "http://localhost:8000/risk-grid?min_score=0.0&limit=5"
+curl "http://localhost:8000/api/v1/predictive-map?minScore=0.0&limit=5"
+```
+
+Expected result:
+
+- `raw_osm_roads` is greater than `0` when OSM ingestion succeeds.
+- `road_risk_features` is greater than `0`.
+- `/risk-summary` reports most Bay Area features as `osm_road_segment` after the broader OSM fetch.
+- `/risk-grid` returns native OSM road `LineString` features when matched.
+- `/api/v1/predictive-map` returns buffered polygon features compatible with the existing frontend overlay.
+
+## 5. Run the Web App
 
 ```bash
 npm run web
@@ -57,7 +92,13 @@ Expected result:
 - Predicted hotspot mode displays probability cells.
 - Search and filter controls remain readable.
 
-## 5. Build Static Web App
+To preview the PostGIS-backed risk layer in the existing predicted tab:
+
+```bash
+EXPO_PUBLIC_PREDICTION_SERVICE_URL=http://localhost:8000 npm run web
+```
+
+## 6. Build Static Web App
 
 ```bash
 EXPO_NO_DOTENV=1 EXPO_PUBLIC_PREDICTION_SERVICE_URL=https://ashishfreaksout-bay-area-pothole-prediction-api.hf.space npm run export:web:pages
@@ -70,7 +111,7 @@ Expected result:
 - Expo bundle paths use `./_expo/...` so GitHub Pages project hosting works.
 - The exported build does not depend on the local `.env` file.
 
-## 6. GitHub Pages Deployment
+## 7. GitHub Pages Deployment
 
 The `Deploy Web App` workflow should run after pushes to `main`.
 
@@ -83,7 +124,7 @@ Expected result:
 
 If the GitHub Pages URL returns 404, enable Pages in repository settings with source `Deploy from a branch`, branch `gh-pages`, folder `/ (root)`.
 
-## 7. Android Actual App
+## 8. Android Actual App
 
 Build command:
 
@@ -101,7 +142,7 @@ Expected result:
 - Pinch zoom works in Live, Predicted, and 3D Nav modes.
 - Location button recenters on the user location when permission is granted.
 
-## 8. Android Sandbox App
+## 9. Android Sandbox App
 
 Build command:
 
@@ -118,7 +159,7 @@ Expected result:
 
 After building the sandbox version, reset the EAS preview environment flag to `false` before future normal builds.
 
-## 9. Model Evaluation Notebook
+## 10. Model Evaluation Notebook
 
 Regenerate the notebook and figures:
 
@@ -141,7 +182,7 @@ Review:
 - Risk grid distribution.
 - Live-vs-predicted comparison.
 
-## 10. Manual UI Review
+## 11. Manual UI Review
 
 Check:
 
@@ -152,7 +193,7 @@ Check:
 - Hotspot opacity allows streets to remain visible.
 - The app does not look cluttered while driving.
 
-## 11. Known Prototype Limitations
+## 12. Known Prototype Limitations
 
 - Sample datasets are small.
 - Prediction service updates are not yet persisted to a database.

@@ -14,7 +14,11 @@ import ProbabilityGradientLayer, {
 } from "./ProbabilityGradientLayer.web";
 import { MODERN_MAP_STYLE } from "../constants/mapStyle";
 import { BAY_AREA_CENTER, BAY_AREA_LOCATIONS } from "../constants/neighborhoods";
-import { fetchPredictiveMap, predictionServiceUrl } from "../services/predictiveMapApi";
+import {
+  fetchPredictiveMap,
+  predictiveMapRequestOptions,
+  predictionServiceUrl
+} from "../services/predictiveMapApi";
 import { colors } from "../theme";
 
 const containerStyle = {
@@ -93,7 +97,7 @@ function usePredictiveMap(viewMode, predictionRefreshToken) {
     let cancelled = false;
     setState((current) => ({ ...current, loading: true, error: null }));
 
-    fetchPredictiveMap({ minScore: 0.42, limit: 3000 })
+    fetchPredictiveMap(predictiveMapRequestOptions())
       .then((geojson) => {
         if (!cancelled) {
           setState({
@@ -531,21 +535,27 @@ function FallbackPreviewMap({
 function PredictionNotice({ predictionState }) {
   const modelLabel = predictionState.metadata?.model_version || "model pending";
   const sourceCount = predictionState.metadata?.data_sources?.length || 0;
+  const isPostgisRoadRisk = modelLabel.includes("postgis-road-risk");
+  const title = isPostgisRoadRisk ? "PostGIS road-risk segments" : "AI probability hotspots";
+  const loadedText = isPostgisRoadRisk
+    ? `${predictionState.features.length} road-risk features loaded from PostGIS.`
+    : `${predictionState.features.length} weighted risk cells loaded from the prediction service.`;
+  const sourceText = isPostgisRoadRisk
+    ? `${modelLabel} using ${sourceCount} data source groups: 311 reports, OpenStreetMap roads, and PostGIS transformations.`
+    : `${modelLabel} using ${sourceCount} data source groups: rainfall, drainage, pavement, traffic, and 311 history.`;
 
   return (
     <FallbackNotice>
-      <FallbackNoticeTitle>AI probability hotspots</FallbackNoticeTitle>
+      <FallbackNoticeTitle>{title}</FallbackNoticeTitle>
       <FallbackNoticeText>
         {predictionState.loading
           ? `Loading from ${predictionServiceUrl()}...`
           : predictionState.error
             ? `Start the prediction service at ${predictionServiceUrl()} to load hotspots.`
-            : `${predictionState.features.length} weighted risk cells loaded from the prediction service.`}
+            : loadedText}
       </FallbackNoticeText>
       {!predictionState.loading && !predictionState.error ? (
-        <FallbackNoticeText>
-          {modelLabel} using {sourceCount} data source groups: rainfall, drainage, pavement, traffic, and 311 history.
-        </FallbackNoticeText>
+        <FallbackNoticeText>{sourceText}</FallbackNoticeText>
       ) : null}
       <LegendRow>
         <LegendSwatch $color="#22c55e" />
